@@ -20,7 +20,8 @@
         "displayName": "VS Commander",
         "selector": [
           {
-            "filenamePattern": "*.commander"
+            "scheme": "untitled",
+            "filenamePattern": "VS Commander Session *"
           }
         ]
       }

@@ -15,8 +15,7 @@ A VS Code extension that provides a Norton Commander style dual-pane file manage
 ### Opening VS Commander
 
 1. Run the command "New VS Commander Window" from the command palette (Ctrl+Shift+P / Cmd+Shift+P)
-2. Or open any `.commander` file to view it with VS Commander
-3. Each window opens as a tab in the editor area
+2. Each window opens as a tab in the editor area without creating any files on disk
 
 ### Using the Interface
 

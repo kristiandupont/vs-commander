@@ -15,17 +15,15 @@ export function activate(context: vscode.ExtensionContext) {
   let disposable = vscode.commands.registerCommand(
     "vsCommander.new",
     async () => {
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      if (!workspaceFolder) {
-        vscode.window.showErrorMessage("No workspace folder open");
-        return;
-      }
-
-      const fileName = `commander-${Date.now()}.commander`;
-      const fileUri = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
-
-      await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
-      vscode.window.showTextDocument(fileUri, { preview: false });
+      const sessionId = Date.now().toString();
+      const uri = vscode.Uri.parse(
+        `untitled:VS Commander Session ${sessionId}`,
+      );
+      await vscode.commands.executeCommand(
+        "vscode.openWith",
+        uri,
+        VSCommanderEditorProvider.viewType,
+      );
     },
   );
 
