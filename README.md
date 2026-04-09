@@ -1,20 +1,29 @@
 # VS Commander
 
-A VS Code extension that provides a Norton Commander style dual-pane file manager view.
+A VS Code extension that provides a Norton Commander style dual-pane file manager as an editor tab.
 
 ## Features
 
-- Dual-pane file browsing
+- Dual-pane file browsing in editor tabs
+- Multiple VS Commander windows open simultaneously
 - Navigate directories by double-clicking
 - Open files directly in VS Code
 - Works with both local and remote files (via VS Code's remote development)
 
 ## Usage
 
-1. Open the VS Commander view from the Explorer panel
-2. Use the path inputs to navigate to specific directories
-3. Double-click directories to navigate
-4. Double-click files to open them
+### Opening VS Commander
+
+1. Run the command "New VS Commander Window" from the command palette (Ctrl+Shift+P / Cmd+Shift+P)
+2. Or open any `.commander` file to view it with VS Commander
+3. Each window opens as a tab in the editor area
+
+### Using the Interface
+
+- **Navigate**: Double-click directories to enter them
+- **Open files**: Double-click files to open them in VS Code
+- **Change path**: Type directly in the path input fields and press Enter
+- **Multiple windows**: Open multiple commander tabs to have different panes open simultaneously
 
 ## Development
 

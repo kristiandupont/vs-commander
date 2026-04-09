@@ -3,17 +3,27 @@ import * as vscode from "vscode";
 export function activate(context: vscode.ExtensionContext) {
   console.log("VS Commander is now active!");
 
-  // Register the webview provider for the view
+  // Register the custom editor provider
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      VSCommanderViewProvider.viewType,
-      new VSCommanderViewProvider(context.extensionUri),
+    vscode.window.registerCustomEditorProvider(
+      VSCommanderEditorProvider.viewType,
+      new VSCommanderEditorProvider(context.extensionUri, context),
     ),
   );
 
-  // Register command to open the view
-  let disposable = vscode.commands.registerCommand("vsCommander.open", () => {
-    vscode.commands.executeCommand("workbench.view.explorer");
+  // Register command to create a new commander window
+  let disposable = vscode.commands.registerCommand("vsCommander.new", async () => {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder open");
+      return;
+    }
+
+    const fileName = `commander-${Date.now()}.commander`;
+    const fileUri = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+
+    await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
+    vscode.window.showTextDocument(fileUri, { preview: false });
   });
 
   context.subscriptions.push(disposable);
@@ -21,25 +31,36 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-class VSCommanderViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = "vsCommanderView";
+class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
+  public static readonly viewType = "vsCommander.editor";
 
-  constructor(private readonly _extensionUri: vscode.Uri) {} // eslint-disable-line no-unused-vars
+  constructor(
+    private readonly _extensionUri: vscode.Uri, // eslint-disable-line no-unused-vars
+    private readonly _context: vscode.ExtensionContext, // eslint-disable-line no-unused-vars
+  ) {}
 
-  resolveWebviewView(
-    webviewView: vscode.WebviewView,
-    _context: vscode.WebviewViewResolveContext, // eslint-disable-line no-unused-vars
+  async openCustomDocument(
+    uri: vscode.Uri,
+    _openContext: vscode.CustomDocumentOpenContext, // eslint-disable-line no-unused-vars
     _token: vscode.CancellationToken, // eslint-disable-line no-unused-vars
-  ) {
-    webviewView.webview.options = {
+  ): Promise<vscode.CustomDocument> {
+    return { uri, dispose: () => {} };
+  }
+
+  async resolveCustomEditor(
+    document: vscode.CustomDocument,
+    webviewPanel: vscode.WebviewPanel,
+    _token: vscode.CancellationToken, // eslint-disable-line no-unused-vars
+  ): Promise<void> {
+    webviewPanel.webview.options = {
       enableScripts: true,
       localResourceRoots: [this._extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    webviewPanel.webview.html = this._getHtmlForWebview(webviewPanel.webview);
 
     // Handle messages from the webview
-    const messageHandler = webviewView.webview.onDidReceiveMessage(
+    const messageHandler = webviewPanel.webview.onDidReceiveMessage(
       async (message) => {
         switch (message.command) {
           case "getWorkspaceFolders": {
@@ -48,7 +69,7 @@ class VSCommanderViewProvider implements vscode.WebviewViewProvider {
                 name: f.name,
                 uri: f.uri.toString(),
               })) || [];
-            webviewView.webview.postMessage({
+            webviewPanel.webview.postMessage({
               command: "workspaceFolders",
               folders,
             });
@@ -58,7 +79,7 @@ class VSCommanderViewProvider implements vscode.WebviewViewProvider {
             const contents = await this.getDirectoryContents(
               vscode.Uri.parse(message.uri),
             );
-            webviewView.webview.postMessage({
+            webviewPanel.webview.postMessage({
               command: "directoryContents",
               contents,
               pane: message.pane,
@@ -76,7 +97,7 @@ class VSCommanderViewProvider implements vscode.WebviewViewProvider {
       },
     );
 
-    webviewView.onDidDispose(() => {
+    webviewPanel.onDidDispose(() => {
       messageHandler.dispose();
     });
   }
