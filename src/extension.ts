@@ -12,19 +12,22 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register command to create a new commander window
-  let disposable = vscode.commands.registerCommand("vsCommander.new", async () => {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      vscode.window.showErrorMessage("No workspace folder open");
-      return;
-    }
+  let disposable = vscode.commands.registerCommand(
+    "vsCommander.new",
+    async () => {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (!workspaceFolder) {
+        vscode.window.showErrorMessage("No workspace folder open");
+        return;
+      }
 
-    const fileName = `commander-${Date.now()}.commander`;
-    const fileUri = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+      const fileName = `commander-${Date.now()}.commander`;
+      const fileUri = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
 
-    await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
-    vscode.window.showTextDocument(fileUri, { preview: false });
-  });
+      await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
+      vscode.window.showTextDocument(fileUri, { preview: false });
+    },
+  );
 
   context.subscriptions.push(disposable);
 }
