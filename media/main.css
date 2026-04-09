@@ -39,10 +39,21 @@
   padding: 2px 8px;
   cursor: pointer;
   user-select: none;
+  border: 1px solid transparent;
 }
 
 .item:hover {
   background-color: var(--vscode-list-hoverBackground);
+}
+
+.item.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.item.focused {
+  border-color: var(--vscode-focusBorder);
+  outline: 1px solid var(--vscode-focusBorder);
 }
 
 .item.directory {
@@ -50,11 +61,10 @@
   color: var(--vscode-charts-blue);
 }
 
-.item.file {
-  color: var(--vscode-foreground);
+.item.directory.parent {
+  font-style: italic;
 }
 
-.item.selected {
-  background-color: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
+.item.file {
+  color: var(--vscode-foreground);
 }
