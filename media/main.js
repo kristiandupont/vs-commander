@@ -18,10 +18,49 @@
   let leftFocusIndex = 0; // Currently focused item index
   let rightFocusIndex = 0;
 
-  // Initialize with workspace folders
+  // Load saved state
+  const savedState = vscode.getState();
+  const hasSavedState =
+    savedState && (savedState.leftCurrentUri || savedState.rightCurrentUri);
+  if (hasSavedState) {
+    leftCurrentUri = savedState.leftCurrentUri || "";
+    rightCurrentUri = savedState.rightCurrentUri || "";
+    activePane = savedState.activePane || "left";
+    leftSelectedIndices = new Set(savedState.leftSelectedIndices || [0]);
+    rightSelectedIndices = new Set(savedState.rightSelectedIndices || [0]);
+    leftFocusIndex = savedState.leftFocusIndex || 0;
+    rightFocusIndex = savedState.rightFocusIndex || 0;
+  }
+
+  // Save state function
+  function saveState() {
+    vscode.setState({
+      leftCurrentUri,
+      rightCurrentUri,
+      activePane,
+      leftSelectedIndices: Array.from(leftSelectedIndices),
+      rightSelectedIndices: Array.from(rightSelectedIndices),
+      leftFocusIndex,
+      rightFocusIndex,
+    });
+  }
+
+  // Initialize with workspace folders (only if no saved state)
   window.addEventListener("load", () => {
-    // Get workspace folders
-    vscode.postMessage({ command: "getWorkspaceFolders" });
+    if (!hasSavedState) {
+      // Get workspace folders
+      vscode.postMessage({ command: "getWorkspaceFolders" });
+    } else {
+      // Restore from saved state
+      if (leftCurrentUri) {
+        leftPathInput.value = leftCurrentUri;
+        loadDirectory(leftCurrentUri, "left");
+      }
+      if (rightCurrentUri) {
+        rightPathInput.value = rightCurrentUri;
+        loadDirectory(rightCurrentUri, "right");
+      }
+    }
   });
 
   // Handle messages from extension
@@ -56,6 +95,7 @@
         loadDirectory(rightCurrentUri, "right");
       }
     }
+    saveState();
   }
 
   function loadDirectory(uri, pane) {
@@ -64,7 +104,8 @@
 
   function displayDirectoryContents(contents, pane) {
     const container = pane === "left" ? leftContent : rightContent;
-    const selectedIndices = pane === "left" ? leftSelectedIndices : rightSelectedIndices;
+    const selectedIndices =
+      pane === "left" ? leftSelectedIndices : rightSelectedIndices;
     const focusIndex = pane === "left" ? leftFocusIndex : rightFocusIndex;
 
     container.innerHTML = "";
@@ -75,7 +116,20 @@
     parentItem.textContent = "..";
     parentItem.dataset.index = "0";
     parentItem.addEventListener("click", () => {
-      handleItemClick(0, pane);
+      // For parent directory, navigate immediately on click
+      const currentUri = pane === "left" ? leftCurrentUri : rightCurrentUri;
+      const pathInput = pane === "left" ? leftPathInput : rightPathInput;
+      const parentUri = getParentUri(currentUri);
+      if (parentUri) {
+        pathInput.value = parentUri;
+        if (pane === "left") {
+          leftCurrentUri = parentUri;
+        } else {
+          rightCurrentUri = parentUri;
+        }
+        loadDirectory(parentUri, pane);
+        saveState();
+      }
     });
     if (selectedIndices.has(0)) {
       parentItem.classList.add("selected");
@@ -94,8 +148,8 @@
       div.dataset.index = actualIndex.toString();
       div.dataset.uri = item.uri;
 
-      div.addEventListener("click", () => {
-        handleItemClick(actualIndex, pane);
+      div.addEventListener("click", (event) => {
+        handleItemClick(event, actualIndex, pane);
       });
 
       if (selectedIndices.has(actualIndex)) {
@@ -109,7 +163,7 @@
     });
   }
 
-  function handleItemClick(index, pane) {
+  function handleItemClick(event, index, pane) {
     // Switch active pane if clicking on different pane
     if (activePane !== pane) {
       activePane = pane;
@@ -120,7 +174,8 @@
     if (event.shiftKey) {
       // Shift+click: extend selection
       const currentFocus = pane === "left" ? leftFocusIndex : rightFocusIndex;
-      const selectedIndices = pane === "left" ? leftSelectedIndices : rightSelectedIndices;
+      const selectedIndices =
+        pane === "left" ? leftSelectedIndices : rightSelectedIndices;
 
       selectedIndices.clear();
       const start = Math.min(currentFocus, index);
@@ -130,7 +185,8 @@
       }
     } else {
       // Regular click: single selection
-      const selectedIndices = pane === "left" ? leftSelectedIndices : rightSelectedIndices;
+      const selectedIndices =
+        pane === "left" ? leftSelectedIndices : rightSelectedIndices;
       selectedIndices.clear();
       selectedIndices.add(index);
     }
@@ -143,6 +199,7 @@
     }
 
     updateDisplay();
+    saveState();
   }
 
   function updatePaneFocus() {
@@ -162,7 +219,8 @@
 
   // Handle keyboard navigation
   document.addEventListener("keydown", (e) => {
-    const selectedIndices = activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
+    const selectedIndices =
+      activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
     const focusIndex = activePane === "left" ? leftFocusIndex : rightFocusIndex;
     const container = activePane === "left" ? leftContent : rightContent;
     const itemCount = container.children.length;
@@ -189,6 +247,7 @@
         // Switch active pane
         activePane = activePane === "left" ? "right" : "left";
         updatePaneFocus();
+        saveState();
         return;
     }
 
@@ -214,6 +273,7 @@
       }
 
       updateDisplay();
+      saveState();
     }
   });
 
@@ -223,7 +283,7 @@
     const pathInput = activePane === "left" ? leftPathInput : rightPathInput;
 
     if (focusIndex === 0) {
-      // Parent directory ("..")
+      // Parent directory ("..") - navigate immediately
       const parentUri = getParentUri(currentUri);
       if (parentUri) {
         pathInput.value = parentUri;
@@ -233,29 +293,32 @@
           rightCurrentUri = parentUri;
         }
         loadDirectory(parentUri, activePane);
+        saveState();
       }
-    } else {
-      // Regular item - simulate double click
-      const container = activePane === "left" ? leftContent : rightContent;
-      const item = container.children[focusIndex];
-      if (item && item.classList.contains("directory")) {
-        // Navigate to directory
-        const uri = item.dataset.uri;
-        if (uri) {
-          pathInput.value = uri;
-          if (activePane === "left") {
-            leftCurrentUri = uri;
-          } else {
-            rightCurrentUri = uri;
-          }
-          loadDirectory(uri, activePane);
+      return;
+    }
+
+    // Regular item - simulate double click
+    const container = activePane === "left" ? leftContent : rightContent;
+    const item = container.children[focusIndex];
+    if (item && item.classList.contains("directory")) {
+      // Navigate to directory
+      const uri = item.dataset.uri;
+      if (uri) {
+        pathInput.value = uri;
+        if (activePane === "left") {
+          leftCurrentUri = uri;
+        } else {
+          rightCurrentUri = uri;
         }
-      } else if (item) {
-        // Open file
-        const uri = item.dataset.uri;
-        if (uri) {
-          vscode.postMessage({ command: "openFile", uri });
-        }
+        loadDirectory(uri, activePane);
+        saveState();
+      }
+    } else if (item) {
+      // Open file
+      const uri = item.dataset.uri;
+      if (uri) {
+        vscode.postMessage({ command: "openFile", uri });
       }
     }
   }
@@ -276,6 +339,7 @@
     if (e.key === "Enter") {
       leftCurrentUri = leftPathInput.value;
       loadDirectory(leftCurrentUri, "left");
+      saveState();
     }
   });
 
@@ -283,6 +347,7 @@
     if (e.key === "Enter") {
       rightCurrentUri = rightPathInput.value;
       loadDirectory(rightCurrentUri, "right");
+      saveState();
     }
   });
 })();

@@ -6,11 +6,12 @@ A VS Code extension that provides a Norton Commander style dual-pane file manage
 
 - Dual-pane file browsing in editor tabs
 - Multiple VS Commander windows open simultaneously
+- **State persistence**: Remembers folders, selections, and scroll position when switching tabs
 - Navigate directories by double-clicking or pressing Enter
 - Open files directly in VS Code
-- **Keyboard navigation**: Use arrow keys to move selection, Tab to switch panes
+- **Keyboard navigation**: Use arrow keys to move selection, Shift+arrow for multi-selection
 - **Selection system**: Single selection per window, Shift+arrow for multi-selection
-- **Parent directory**: ".." item at the top to go up one level
+- **Parent directory**: ".." item at the top to go up one level (click or Enter)
 - Works with both local and remote files (via VS Code's remote development)
 
 ## Usage
