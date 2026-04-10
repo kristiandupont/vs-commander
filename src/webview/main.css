@@ -1,0 +1,70 @@
+.commander {
+  display: flex;
+  height: 100vh;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vscode-panel-border);
+  margin: 2px;
+}
+
+.pane-header {
+  padding: 4px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background-color: var(--vscode-editor-background);
+}
+
+.pane-header input {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid var(--vscode-input-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.pane-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--vscode-editor-background);
+}
+
+.item {
+  padding: 2px 8px;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
+}
+
+.item:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.item.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.item.focused {
+  border-color: var(--vscode-focusBorder);
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.item.directory {
+  font-weight: bold;
+  color: var(--vscode-charts-blue);
+}
+
+.item.directory.parent {
+  font-style: italic;
+}
+
+.item.file {
+  color: var(--vscode-foreground);
+}

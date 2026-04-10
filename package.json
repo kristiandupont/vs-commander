@@ -36,7 +36,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json && npm run build-webview",
-    "build-webview": "esbuild src/webview/main.ts --bundle --outfile=media/main.js --format=iife --minify",
+    "build-webview": "esbuild out/webview/main.js --bundle --outfile=media/main.js --format=iife --minify && cp src/webview/main.css media/main.css",
     "watch": "tsc -watch -p ./ & tsc -watch -p ./tsconfig.webview.json",
     "watch-webview": "esbuild src/webview/main.ts --bundle --outfile=media/main.js --watch",
     "pretest": "npm run compile && npm run lint",
