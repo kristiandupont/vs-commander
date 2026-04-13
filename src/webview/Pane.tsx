@@ -3,24 +3,14 @@
 import { getParentUri } from "./getParentUri";
 import { DirectoryItem } from "./types";
 
-interface PaneProps {
-  pane: "left" | "right";
-  uri: string;
-  contents: DirectoryItem[];
-  selectedIndices: Set<number>;
-  focusIndex: number;
-  isActive: boolean;
-  onNavigate: (uri: string) => void;
-  onItemSelect: (index: number, shiftKey: boolean) => void;
-}
-
 function formatSize(item: DirectoryItem): string {
   if (item.type === "directory") return "<DIR>";
   if (item.size === undefined) return "";
   const size = item.size;
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  if (size < 1024 * 1024 * 1024)
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
@@ -33,6 +23,17 @@ function formatDate(ms?: number): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const min = String(d.getMinutes()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+}
+
+interface PaneProps {
+  pane: "left" | "right";
+  uri: string;
+  contents: DirectoryItem[];
+  selectedIndices: Set<number>;
+  focusIndex: number;
+  isActive: boolean;
+  onNavigate: (uri: string) => void;
+  onItemSelect: (index: number, shiftKey: boolean) => void;
 }
 
 export function Pane({
@@ -76,6 +77,12 @@ export function Pane({
             selected: selectedIndices.has(0),
             focused: isActive && focusIndex === 0,
           }}
+          ref={
+            isActive && focusIndex === 0
+              ? (el: Element | null) =>
+                  el && (el as HTMLElement).scrollIntoView({ block: "nearest" })
+              : undefined
+          }
           onclick={() => parentUri && onNavigate(parentUri)}
         >
           <span class="col-name">..</span>
@@ -84,6 +91,7 @@ export function Pane({
         </div>
         {contents.map((item, index) => {
           const actualIndex = index + 1;
+          const isFocused = isActive && focusIndex === actualIndex;
           return (
             <div
               key={item.uri}
@@ -91,8 +99,15 @@ export function Pane({
                 item: true,
                 [item.type]: true,
                 selected: selectedIndices.has(actualIndex),
-                focused: isActive && focusIndex === actualIndex,
+                focused: isFocused,
               }}
+              ref={
+                isFocused
+                  ? (el: Element | null) =>
+                      el &&
+                      (el as HTMLElement).scrollIntoView({ block: "nearest" })
+                  : undefined
+              }
               data-uri={item.uri}
               onclick={(e: MouseEvent) => onItemSelect(actualIndex, e.shiftKey)}
             >
