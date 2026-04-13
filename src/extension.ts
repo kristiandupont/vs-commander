@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("VS Commander is now active!");
+  console.log("Debug mode");
 
   // Register the custom editor provider
   context.subscriptions.push(
@@ -137,20 +138,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
         <title>VS Commander</title>
       </head>
       <body>
-        <div class="commander">
-          <div class="pane" id="left-pane">
-            <div class="pane-header">
-              <input type="text" id="left-path" placeholder="Path">
-            </div>
-            <div class="pane-content" id="left-content"></div>
-          </div>
-          <div class="pane" id="right-pane">
-            <div class="pane-header">
-              <input type="text" id="right-path" placeholder="Path">
-            </div>
-            <div class="pane-content" id="right-content"></div>
-          </div>
-        </div>
+        <div id="crank-root"></div>
         <script nonce="${nonce}" src="${scriptUri}"></script>
       </body>
       </html>`;

@@ -6,9 +6,14 @@
     "rootDir": "src/webview",
     "lib": ["ES2020", "DOM"],
     "strict": true,
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+
+    /* Crank */
+    "jsx": "react-jsx",
+    "jsxImportSource": "@b9g/crank"
   },
   "include": ["src/webview/**/*"],
   "exclude": ["node_modules"]
