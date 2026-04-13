@@ -6,93 +6,8 @@ import type { Context } from "@b9g/crank";
 import "./types";
 import { DirectoryItem, WorkspaceFolder } from "./types";
 import { vscode } from "./webviewApi";
-
-function getParentUri(uri: string): string | null {
-  try {
-    const url = new URL(uri);
-    const parts = url.pathname.split("/").filter(Boolean);
-    if (parts.length === 0) return null;
-    parts.pop();
-    url.pathname = "/" + parts.join("/");
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
-
-interface PaneProps {
-  pane: "left" | "right";
-  uri: string;
-  contents: DirectoryItem[];
-  selectedIndices: Set<number>;
-  focusIndex: number;
-  isActive: boolean;
-  onNavigate: (uri: string) => void;
-  onItemSelect: (index: number, shiftKey: boolean) => void;
-}
-
-function Pane({
-  pane,
-  uri,
-  contents,
-  selectedIndices,
-  focusIndex,
-  isActive,
-  onNavigate,
-  onItemSelect,
-}: PaneProps) {
-  const parentUri = getParentUri(uri);
-
-  return (
-    <div class={{ pane: true, active: isActive }} id={`${pane}-pane`}>
-      <div class="pane-header">
-        <input
-          type="text"
-          id={`${pane}-path`}
-          placeholder="Path"
-          value={uri}
-          onkeydown={(e: KeyboardEvent) => {
-            if (e.key === "Enter") {
-              onNavigate((e.target as HTMLInputElement).value);
-            }
-          }}
-        />
-      </div>
-      <div class="pane-content" id={`${pane}-content`}>
-        <div
-          class={{
-            item: true,
-            directory: true,
-            parent: true,
-            selected: selectedIndices.has(0),
-            focused: isActive && focusIndex === 0,
-          }}
-          onclick={() => parentUri && onNavigate(parentUri)}
-        >
-          ..
-        </div>
-        {contents.map((item, index) => {
-          const actualIndex = index + 1;
-          return (
-            <div
-              key={item.uri}
-              class={{
-                item: true,
-                [item.type]: true,
-                selected: selectedIndices.has(actualIndex),
-                focused: isActive && focusIndex === actualIndex,
-              }}
-              data-uri={item.uri}
-              onclick={(e: MouseEvent) => onItemSelect(actualIndex, e.shiftKey)}
-            >
-              {item.name}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+import { getParentUri } from "./getParentUri";
+import { Pane } from "./Pane";
 
 function* App(this: Context) {
   let leftUri = "";
@@ -156,8 +71,7 @@ function* App(this: Context) {
       activePane = pane;
       const selectedIndices =
         pane === "left" ? leftSelectedIndices : rightSelectedIndices;
-      const currentFocus =
-        pane === "left" ? leftFocusIndex : rightFocusIndex;
+      const currentFocus = pane === "left" ? leftFocusIndex : rightFocusIndex;
 
       if (shiftKey) {
         selectedIndices.clear();
@@ -225,7 +139,9 @@ function* App(this: Context) {
         if (newFocusIndex !== focusIndex) {
           this.refresh(() => {
             const selectedIndices =
-              activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
+              activePane === "left"
+                ? leftSelectedIndices
+                : rightSelectedIndices;
 
             if (e.shiftKey) {
               selectedIndices.clear();
