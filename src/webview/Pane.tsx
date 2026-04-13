@@ -77,12 +77,6 @@ export function Pane({
             selected: selectedIndices.has(0),
             focused: isActive && focusIndex === 0,
           }}
-          ref={
-            isActive && focusIndex === 0
-              ? (el: Element | null) =>
-                  el && (el as HTMLElement).scrollIntoView({ block: "nearest" })
-              : undefined
-          }
           onclick={() => parentUri && onNavigate(parentUri)}
         >
           <span class="col-name">..</span>
@@ -101,13 +95,6 @@ export function Pane({
                 selected: selectedIndices.has(actualIndex),
                 focused: isFocused,
               }}
-              ref={
-                isFocused
-                  ? (el: Element | null) =>
-                      el &&
-                      (el as HTMLElement).scrollIntoView({ block: "nearest" })
-                  : undefined
-              }
               data-uri={item.uri}
               onclick={(e: MouseEvent) => onItemSelect(actualIndex, e.shiftKey)}
             >

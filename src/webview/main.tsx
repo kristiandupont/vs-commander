@@ -143,6 +143,28 @@ function* App(this: Context) {
     }
   };
 
+  const triggerCopy = () => {
+    const selected =
+      activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
+    const otherPane = activePane === "left" ? "right" : "left";
+    const targetUri = activePane === "left" ? rightUri : leftUri;
+    const contents = activePane === "left" ? leftContents : rightContents;
+    const uris = [...selected]
+      .filter((i) => i > 0)
+      .map((i) => contents[i - 1]?.uri)
+      .filter(Boolean) as string[];
+    if (uris.length > 0 && targetUri) {
+      vscode.postMessage({
+        command: "copyFiles",
+        uris,
+        targetDirectoryUri: targetUri,
+        pane: activePane,
+      });
+      // Reload destination immediately so the round-trip overlaps with the copy
+      loadDirectory(targetUri, otherPane);
+    }
+  };
+
   const handleKeyboard = (e: KeyboardEvent) => {
     // Don't intercept when the user is typing in a path input
     if ((e.target as HTMLElement).tagName === "INPUT") return;
@@ -210,6 +232,45 @@ function* App(this: Context) {
         });
         saveState();
         break;
+      case "F2": {
+        e.preventDefault();
+        const selected =
+          activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
+        if (selected.size === 1 && !selected.has(0)) {
+          const idx = [...selected][0];
+          const item = contents[idx - 1];
+          if (item) {
+            vscode.postMessage({
+              command: "renameFile",
+              uri: item.uri,
+              pane: activePane,
+            });
+          }
+        }
+        break;
+      }
+      case "Delete": {
+        e.preventDefault();
+        const selected =
+          activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
+        const uris = [...selected]
+          .filter((i) => i > 0)
+          .map((i) => contents[i - 1]?.uri)
+          .filter(Boolean) as string[];
+        if (uris.length > 0) {
+          vscode.postMessage({
+            command: "deleteFiles",
+            uris,
+            pane: activePane,
+          });
+        }
+        break;
+      }
+      case "F5": {
+        e.preventDefault();
+        triggerCopy();
+        break;
+      }
     }
   };
 
@@ -240,6 +301,21 @@ function* App(this: Context) {
         });
         break;
       }
+      case "triggerCopy": {
+        triggerCopy();
+        break;
+      }
+      case "operationComplete": {
+        const pane = message.pane as "left" | "right";
+        const uri = pane === "left" ? leftUri : rightUri;
+        if (uri) loadDirectory(uri, pane);
+        if (message.reloadOtherPane) {
+          const otherPane = pane === "left" ? "right" : "left";
+          const otherUri = otherPane === "left" ? leftUri : rightUri;
+          if (otherUri) loadDirectory(otherUri, otherPane);
+        }
+        break;
+      }
     }
   };
 
@@ -258,6 +334,12 @@ function* App(this: Context) {
   }
 
   for ({} of this) {
+    this.after(() => {
+      const focusedEl = document.querySelector(
+        `#${activePane}-content .item.focused`,
+      );
+      focusedEl?.scrollIntoView({ block: "nearest" });
+    });
     yield (
       <div class="commander">
         <Pane

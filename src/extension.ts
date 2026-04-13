@@ -5,11 +5,18 @@ export function activate(context: vscode.ExtensionContext) {
   console.log("Debug mode");
 
   // Register the custom editor provider
+  const provider = new VSCommanderEditorProvider(context.extensionUri, context);
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
       VSCommanderEditorProvider.viewType,
-      new VSCommanderEditorProvider(context.extensionUri, context),
+      provider,
     ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vsCommander.copy", () => {
+      provider.triggerCopyInActivePanel();
+    }),
   );
 
   // Register command to create a new commander window
@@ -36,10 +43,16 @@ export function deactivate() {}
 class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = "vsCommander.editor";
 
+  private _activePanel: vscode.WebviewPanel | undefined;
+
   constructor(
     private readonly _extensionUri: vscode.Uri, // eslint-disable-line no-unused-vars
     private readonly _context: vscode.ExtensionContext, // eslint-disable-line no-unused-vars
   ) {}
+
+  triggerCopyInActivePanel() {
+    this._activePanel?.webview.postMessage({ command: "triggerCopy" });
+  }
 
   async openCustomDocument(
     uri: vscode.Uri,
@@ -95,11 +108,104 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
             );
             return;
           }
+          case "renameFile": {
+            const oldUri = vscode.Uri.parse(message.uri);
+            const oldName = oldUri.path.split("/").pop() || "";
+            const newName = await vscode.window.showInputBox({
+              prompt: "Rename",
+              value: oldName,
+              validateInput: (value) => {
+                if (!value || value.trim() === "") return "Name cannot be empty";
+                if (value.includes("/") || value.includes("\\"))
+                  return "Name cannot contain slashes";
+                return null;
+              },
+            });
+            if (newName && newName.trim() !== oldName) {
+              const pathParts = oldUri.path.split("/");
+              pathParts.pop();
+              const parentUri = oldUri.with({ path: pathParts.join("/") || "/" });
+              const newUri = vscode.Uri.joinPath(parentUri, newName.trim());
+              try {
+                await vscode.workspace.fs.rename(oldUri, newUri);
+              } catch (err) {
+                vscode.window.showErrorMessage(`Rename failed: ${err}`);
+              }
+            }
+            webviewPanel.webview.postMessage({
+              command: "operationComplete",
+              pane: message.pane,
+            });
+            return;
+          }
+          case "deleteFiles": {
+            const uris: string[] = message.uris;
+            const count = uris.length;
+            const label =
+              count === 1
+                ? vscode.Uri.parse(uris[0]).path.split("/").pop()
+                : `${count} items`;
+            const answer = await vscode.window.showWarningMessage(
+              `Delete ${label}?`,
+              { modal: true },
+              "Delete",
+            );
+            if (answer === "Delete") {
+              for (const uriStr of uris) {
+                try {
+                  await vscode.workspace.fs.delete(vscode.Uri.parse(uriStr), {
+                    recursive: true,
+                  });
+                } catch (err) {
+                  vscode.window.showErrorMessage(`Delete failed: ${err}`);
+                }
+              }
+            }
+            webviewPanel.webview.postMessage({
+              command: "operationComplete",
+              pane: message.pane,
+            });
+            return;
+          }
+          case "copyFiles": {
+            const uris: string[] = message.uris;
+            const targetDirUri = vscode.Uri.parse(message.targetDirectoryUri);
+            for (const uriStr of uris) {
+              const srcUri = vscode.Uri.parse(uriStr);
+              const name = srcUri.path.split("/").pop() || "";
+              const destUri = vscode.Uri.joinPath(targetDirUri, name);
+              try {
+                await vscode.workspace.fs.copy(srcUri, destUri, {
+                  overwrite: false,
+                });
+              } catch (err) {
+                vscode.window.showErrorMessage(`Copy failed for ${name}: ${err}`);
+              }
+            }
+            webviewPanel.webview.postMessage({
+              command: "operationComplete",
+              pane: message.pane,
+              reloadOtherPane: true,
+            });
+            return;
+          }
         }
       },
     );
 
+    if (webviewPanel.active) {
+      this._activePanel = webviewPanel;
+    }
+    webviewPanel.onDidChangeViewState(() => {
+      if (webviewPanel.active) {
+        this._activePanel = webviewPanel;
+      }
+    });
+
     webviewPanel.onDidDispose(() => {
+      if (this._activePanel === webviewPanel) {
+        this._activePanel = undefined;
+      }
       messageHandler.dispose();
     });
   }

@@ -30,6 +30,17 @@
       {
         "command": "vsCommander.new",
         "title": "New VS Commander Window"
+      },
+      {
+        "command": "vsCommander.copy",
+        "title": "Copy (VS Commander)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vsCommander.copy",
+        "key": "F5",
+        "when": "activeCustomEditorId == 'vsCommander.editor'"
       }
     ]
   },
