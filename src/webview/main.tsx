@@ -75,6 +75,7 @@ function Pane({
           const actualIndex = index + 1;
           return (
             <div
+              key={item.uri}
               class={{
                 item: true,
                 [item.type]: true,
@@ -305,7 +306,7 @@ function* App(this: Context) {
     if (rightUri) loadDirectory(rightUri, "right");
   }
 
-  for (const _ of this) {
+  for ({} of this) {
     yield (
       <div class="commander">
         <Pane
