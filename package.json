@@ -34,12 +34,12 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json && npm run build-webview",
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./ && tsc -p ./tsconfig.webview.json && npm run build-webview",
     "build-webview": "esbuild out/webview/main.js --bundle --outfile=media/main.js --format=iife --minify && cp src/webview/main.css media/main.css",
     "watch": "tsc -watch -p ./ & tsc -watch -p ./tsconfig.webview.json",
     "watch-webview": "esbuild src/webview/main.ts --bundle --outfile=media/main.js --watch",
-    "pretest": "npm run compile && npm run lint",
+    "pretest": "npm run build && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
     "package": "vsce package"

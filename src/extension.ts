@@ -107,11 +107,26 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
   private async getDirectoryContents(uri: vscode.Uri): Promise<any[]> {
     try {
       const entries = await vscode.workspace.fs.readDirectory(uri);
-      return entries.map(([name, type]) => ({
-        name,
-        type: type === vscode.FileType.Directory ? "directory" : "file",
-        uri: vscode.Uri.joinPath(uri, name).toString(),
-      }));
+      const items = await Promise.all(
+        entries.map(async ([name, type]) => {
+          const itemUri = vscode.Uri.joinPath(uri, name);
+          let size: number | undefined;
+          let lastModified: number | undefined;
+          try {
+            const stat = await vscode.workspace.fs.stat(itemUri);
+            size = stat.size;
+            lastModified = stat.mtime;
+          } catch { /* stat unavailable */ }
+          return {
+            name,
+            type: type === vscode.FileType.Directory ? "directory" : "file",
+            uri: itemUri.toString(),
+            size,
+            lastModified,
+          };
+        }),
+      );
+      return items;
     } catch (error) {
       console.error("Error reading directory:", error);
       return [];

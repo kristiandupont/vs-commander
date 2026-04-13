@@ -35,11 +35,44 @@
   background-color: var(--vscode-editor-background);
 }
 
+.pane-columns {
+  display: flex;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background-color: var(--vscode-editor-background);
+  font-weight: bold;
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
 .item {
+  display: flex;
   padding: 2px 8px;
   cursor: pointer;
   user-select: none;
   border: 1px solid transparent;
+}
+
+.col-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-size {
+  width: 72px;
+  text-align: right;
+  padding-right: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.col-date {
+  width: 120px;
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .item:hover {

@@ -3,11 +3,19 @@
 import { renderer } from "@b9g/crank/dom";
 import type { Context } from "@b9g/crank";
 
-import "./types";
 import { DirectoryItem, WorkspaceFolder } from "./types";
 import { vscode } from "./webviewApi";
 import { getParentUri } from "./getParentUri";
 import { Pane } from "./Pane";
+
+function sortContents(contents: DirectoryItem[]): DirectoryItem[] {
+  return [...contents].sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === "directory" ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}
 
 function* App(this: Context) {
   let leftUri = "";
@@ -19,6 +27,8 @@ function* App(this: Context) {
   let rightSelectedIndices = new Set<number>([0]);
   let leftFocusIndex = 0;
   let rightFocusIndex = 0;
+  let leftAnchorIndex = 0;
+  let rightAnchorIndex = 0;
 
   // Restore persisted state
   const savedState = vscode.getState();
@@ -32,6 +42,8 @@ function* App(this: Context) {
     rightSelectedIndices = new Set(savedState.rightSelectedIndices || [0]);
     leftFocusIndex = savedState.leftFocusIndex || 0;
     rightFocusIndex = savedState.rightFocusIndex || 0;
+    leftAnchorIndex = savedState.leftAnchorIndex || 0;
+    rightAnchorIndex = savedState.rightAnchorIndex || 0;
   }
 
   const saveState = () => {
@@ -43,6 +55,8 @@ function* App(this: Context) {
       rightSelectedIndices: Array.from(rightSelectedIndices),
       leftFocusIndex,
       rightFocusIndex,
+      leftAnchorIndex,
+      rightAnchorIndex,
     });
   };
 
@@ -54,8 +68,14 @@ function* App(this: Context) {
     this.refresh(() => {
       if (pane === "left") {
         leftUri = uri;
+        leftFocusIndex = 0;
+        leftAnchorIndex = 0;
+        leftSelectedIndices = new Set([0]);
       } else {
         rightUri = uri;
+        rightFocusIndex = 0;
+        rightAnchorIndex = 0;
+        rightSelectedIndices = new Set([0]);
       }
     });
     loadDirectory(uri, pane);
@@ -71,24 +91,30 @@ function* App(this: Context) {
       activePane = pane;
       const selectedIndices =
         pane === "left" ? leftSelectedIndices : rightSelectedIndices;
-      const currentFocus = pane === "left" ? leftFocusIndex : rightFocusIndex;
+      const anchor = pane === "left" ? leftAnchorIndex : rightAnchorIndex;
 
       if (shiftKey) {
         selectedIndices.clear();
-        const start = Math.min(currentFocus, index);
-        const end = Math.max(currentFocus, index);
+        const start = Math.min(anchor, index);
+        const end = Math.max(anchor, index);
         for (let i = start; i <= end; i++) {
           selectedIndices.add(i);
+        }
+        if (pane === "left") {
+          leftFocusIndex = index;
+        } else {
+          rightFocusIndex = index;
         }
       } else {
         selectedIndices.clear();
         selectedIndices.add(index);
-      }
-
-      if (pane === "left") {
-        leftFocusIndex = index;
-      } else {
-        rightFocusIndex = index;
+        if (pane === "left") {
+          leftFocusIndex = index;
+          leftAnchorIndex = index;
+        } else {
+          rightFocusIndex = index;
+          rightAnchorIndex = index;
+        }
       }
     });
     saveState();
@@ -142,23 +168,31 @@ function* App(this: Context) {
               activePane === "left"
                 ? leftSelectedIndices
                 : rightSelectedIndices;
+            const anchor =
+              activePane === "left" ? leftAnchorIndex : rightAnchorIndex;
 
             if (e.shiftKey) {
               selectedIndices.clear();
-              const start = Math.min(focusIndex, newFocusIndex);
-              const end = Math.max(focusIndex, newFocusIndex);
+              const start = Math.min(anchor, newFocusIndex);
+              const end = Math.max(anchor, newFocusIndex);
               for (let i = start; i <= end; i++) {
                 selectedIndices.add(i);
+              }
+              if (activePane === "left") {
+                leftFocusIndex = newFocusIndex;
+              } else {
+                rightFocusIndex = newFocusIndex;
               }
             } else {
               selectedIndices.clear();
               selectedIndices.add(newFocusIndex);
-            }
-
-            if (activePane === "left") {
-              leftFocusIndex = newFocusIndex;
-            } else {
-              rightFocusIndex = newFocusIndex;
+              if (activePane === "left") {
+                leftFocusIndex = newFocusIndex;
+                leftAnchorIndex = newFocusIndex;
+              } else {
+                rightFocusIndex = newFocusIndex;
+                rightAnchorIndex = newFocusIndex;
+              }
             }
           });
           saveState();
@@ -197,10 +231,11 @@ function* App(this: Context) {
       }
       case "directoryContents": {
         this.refresh(() => {
+          const sorted = sortContents(message.contents);
           if (message.pane === "left") {
-            leftContents = message.contents;
+            leftContents = sorted;
           } else {
-            rightContents = message.contents;
+            rightContents = sorted;
           }
         });
         break;
