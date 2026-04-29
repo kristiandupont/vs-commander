@@ -19,6 +19,12 @@ export function activate(context: vscode.ExtensionContext) {
     }),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vsCommander.mkdir", () => {
+      provider.triggerMkdirInActivePanel();
+    }),
+  );
+
   // Register command to create a new commander window
   let disposable = vscode.commands.registerCommand(
     "vsCommander.new",
@@ -52,6 +58,10 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   triggerCopyInActivePanel() {
     this._activePanel?.webview.postMessage({ command: "triggerCopy" });
+  }
+
+  triggerMkdirInActivePanel() {
+    this._activePanel?.webview.postMessage({ command: "triggerMkdir" });
   }
 
   async openCustomDocument(
@@ -159,6 +169,31 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 } catch (err) {
                   vscode.window.showErrorMessage(`Delete failed: ${err}`);
                 }
+              }
+            }
+            webviewPanel.webview.postMessage({
+              command: "operationComplete",
+              pane: message.pane,
+            });
+            return;
+          }
+          case "mkdir": {
+            const dirUri = vscode.Uri.parse(message.currentDirectoryUri);
+            const folderName = await vscode.window.showInputBox({
+              prompt: "New folder name",
+              validateInput: (value) => {
+                if (!value || value.trim() === "") return "Name cannot be empty";
+                if (value.includes("/") || value.includes("\\"))
+                  return "Name cannot contain slashes";
+                return null;
+              },
+            });
+            if (folderName && folderName.trim()) {
+              const newDirUri = vscode.Uri.joinPath(dirUri, folderName.trim());
+              try {
+                await vscode.workspace.fs.createDirectory(newDirUri);
+              } catch (err) {
+                vscode.window.showErrorMessage(`Create folder failed: ${err}`);
               }
             }
             webviewPanel.webview.postMessage({

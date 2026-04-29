@@ -271,6 +271,18 @@ function* App(this: Context) {
         triggerCopy();
         break;
       }
+      case "F7": {
+        e.preventDefault();
+        const currentUri = activePane === "left" ? leftUri : rightUri;
+        if (currentUri) {
+          vscode.postMessage({
+            command: "mkdir",
+            currentDirectoryUri: currentUri,
+            pane: activePane,
+          });
+        }
+        break;
+      }
     }
   };
 
@@ -303,6 +315,17 @@ function* App(this: Context) {
       }
       case "triggerCopy": {
         triggerCopy();
+        break;
+      }
+      case "triggerMkdir": {
+        const currentUri = activePane === "left" ? leftUri : rightUri;
+        if (currentUri) {
+          vscode.postMessage({
+            command: "mkdir",
+            currentDirectoryUri: currentUri,
+            pane: activePane,
+          });
+        }
         break;
       }
       case "operationComplete": {

@@ -34,12 +34,21 @@
       {
         "command": "vsCommander.copy",
         "title": "Copy (VS Commander)"
+      },
+      {
+        "command": "vsCommander.mkdir",
+        "title": "New Folder (VS Commander)"
       }
     ],
     "keybindings": [
       {
         "command": "vsCommander.copy",
         "key": "F5",
+        "when": "activeCustomEditorId == 'vsCommander.editor'"
+      },
+      {
+        "command": "vsCommander.mkdir",
+        "key": "F7",
         "when": "activeCustomEditorId == 'vsCommander.editor'"
       }
     ]
