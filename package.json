@@ -56,9 +56,9 @@
   "scripts": {
     "vscode:prepublish": "npm run build",
     "build": "tsc -p ./ && tsc -p ./tsconfig.webview.json && npm run build-webview",
-    "build-webview": "esbuild out/webview/main.js --bundle --outfile=media/main.js --format=iife --minify && cp src/webview/main.css media/main.css",
+    "build-webview": "esbuild out/webview/main.js --bundle --outdir=media/ --format=esm --splitting --minify && cp src/webview/main.css media/main.css",
     "watch": "tsc -watch -p ./ & tsc -watch -p ./tsconfig.webview.json",
-    "watch-webview": "esbuild src/webview/main.ts --bundle --outfile=media/main.js --watch",
+    "watch-webview": "esbuild out/webview/main.js --bundle --outdir=media/ --format=esm --splitting --watch",
     "pretest": "npm run build && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
@@ -80,6 +80,8 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
-    "@b9g/crank": "^0.7.9"
+    "@b9g/crank": "^0.7.9",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.2"
   }
 }

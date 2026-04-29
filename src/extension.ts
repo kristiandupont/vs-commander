@@ -177,6 +177,65 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
             });
             return;
           }
+          case "previewFile": {
+            const fileUri = vscode.Uri.parse(message.uri);
+            const fileName = fileUri.path.split("/").pop() || "";
+            const ext = fileName.includes(".")
+              ? fileName.split(".").pop()!.toLowerCase()
+              : "";
+            const IMAGE_EXTS = new Set([
+              "png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico", "tiff",
+            ]);
+            let bytes: Uint8Array;
+            try {
+              bytes = await vscode.workspace.fs.readFile(fileUri);
+            } catch {
+              webviewPanel.webview.postMessage({
+                command: "filePreview", type: "binary", fileName,
+              });
+              return;
+            }
+            if (IMAGE_EXTS.has(ext)) {
+              const mimeMap: Record<string, string> = {
+                jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+                gif: "image/gif", svg: "image/svg+xml", webp: "image/webp",
+                bmp: "image/bmp", ico: "image/x-icon", tiff: "image/tiff",
+              };
+              const mime = mimeMap[ext] || `image/${ext}`;
+              const base64 = Buffer.from(bytes).toString("base64");
+              webviewPanel.webview.postMessage({
+                command: "filePreview", type: "image",
+                src: `data:${mime};base64,${base64}`, fileName,
+              });
+              return;
+            }
+            // 1 MB cap and binary detection via null bytes
+            if (bytes.length > 1024 * 1024) {
+              webviewPanel.webview.postMessage({
+                command: "filePreview", type: "binary", fileName,
+              });
+              return;
+            }
+            const checkLen = Math.min(bytes.length, 8192);
+            for (let i = 0; i < checkLen; i++) {
+              if (bytes[i] === 0) {
+                webviewPanel.webview.postMessage({
+                  command: "filePreview", type: "binary", fileName,
+                });
+                return;
+              }
+            }
+            const content = new TextDecoder("utf-8").decode(bytes);
+            const isMarkdown = ext === "md" || ext === "markdown" || ext === "mdx";
+            webviewPanel.webview.postMessage({
+              command: "filePreview",
+              type: isMarkdown ? "markdown" : "code",
+              content,
+              extension: ext,
+              fileName,
+            });
+            return;
+          }
           case "mkdir": {
             const dirUri = vscode.Uri.parse(message.currentDirectoryUri);
             const folderName = await vscode.window.showInputBox({
@@ -288,14 +347,14 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
       <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src ${webview.cspSource}; script-src 'nonce-${nonce}' 'strict-dynamic';">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="${styleUri}" rel="stylesheet">
         <title>VS Commander</title>
       </head>
       <body>
         <div id="crank-root"></div>
-        <script nonce="${nonce}" src="${scriptUri}"></script>
+        <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
       </body>
       </html>`;
   }

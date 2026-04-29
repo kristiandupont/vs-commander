@@ -102,3 +102,211 @@
 .item.file {
   color: var(--vscode-foreground);
 }
+
+/* ── Quick View overlay ─────────────────────────────────────────── */
+
+.quickview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.quickview-panel {
+  width: 80%;
+  height: 80%;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.quickview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--vscode-titleBar-activeBackground, var(--vscode-editor-background));
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.quickview-filename {
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickview-close {
+  background: none;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.quickview-close:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.quickview-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.quickview-placeholder {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  text-align: center;
+  padding: 32px;
+}
+
+.quickview-image {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  margin: auto;
+}
+
+.quickview-code {
+  margin: 0;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 13px);
+  line-height: 1.5;
+  white-space: pre;
+  overflow: visible;
+}
+
+/* ── Markdown content ───────────────────────────────────────────── */
+
+.quickview-markdown {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  line-height: 1.6;
+  color: var(--vscode-editor-foreground);
+}
+
+.quickview-markdown h1,
+.quickview-markdown h2,
+.quickview-markdown h3,
+.quickview-markdown h4 {
+  margin: 16px 0 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  padding-bottom: 4px;
+}
+
+.quickview-markdown p { margin: 8px 0; }
+
+.quickview-markdown pre {
+  background: var(--vscode-textBlockQuote-background, rgba(128,128,128,0.1));
+  padding: 12px;
+  border-radius: 4px;
+  overflow: auto;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+}
+
+.quickview-markdown code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+  background: var(--vscode-textBlockQuote-background, rgba(128,128,128,0.1));
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.quickview-markdown pre code { background: none; padding: 0; }
+
+.quickview-markdown blockquote {
+  border-left: 4px solid var(--vscode-textBlockQuote-border, #555);
+  margin: 0;
+  padding: 4px 16px;
+  background: var(--vscode-textBlockQuote-background, rgba(128,128,128,0.1));
+}
+
+.quickview-markdown table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+
+.quickview-markdown th,
+.quickview-markdown td {
+  border: 1px solid var(--vscode-panel-border);
+  padding: 6px 12px;
+}
+
+.quickview-markdown th { background: var(--vscode-editor-inactiveSelectionBackground); }
+
+.quickview-markdown a { color: var(--vscode-textLink-foreground); }
+
+.quickview-markdown hr {
+  border: none;
+  border-top: 1px solid var(--vscode-panel-border);
+  margin: 16px 0;
+}
+
+/* ── highlight.js — Dark+ colours (default VS Code dark theme) ─── */
+
+.hljs { color: #d4d4d4; }
+.hljs-keyword,
+.hljs-selector-tag { color: #569cd6; }
+.hljs-built_in,
+.hljs-type,
+.hljs-title.class_ { color: #4ec9b0; }
+.hljs-string,
+.hljs-attr,
+.hljs-template-variable { color: #ce9178; }
+.hljs-comment,
+.hljs-quote { color: #6a9955; font-style: italic; }
+.hljs-number,
+.hljs-literal { color: #b5cea8; }
+.hljs-variable,
+.hljs-params { color: #9cdcfe; }
+.hljs-title.function_,
+.hljs-function .hljs-title { color: #dcdcaa; }
+.hljs-tag,
+.hljs-name { color: #569cd6; }
+.hljs-attribute { color: #9cdcfe; }
+.hljs-regexp,
+.hljs-link { color: #d16969; }
+.hljs-symbol,
+.hljs-bullet { color: #4fc1ff; }
+.hljs-section { color: #ffd700; }
+.hljs-addition { color: #b5cea8; background: rgba(181,206,168,.1); }
+.hljs-deletion { color: #f44747; background: rgba(244,71,71,.1); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }
+.hljs-operator,
+.hljs-punctuation { color: #d4d4d4; }
+.hljs-property,
+.hljs-meta { color: #9cdcfe; }
+.hljs-selector-id,
+.hljs-selector-class { color: #d7ba7d; }
+
+/* Light theme overrides */
+body.vscode-light .hljs { color: #000; }
+body.vscode-light .hljs-keyword,
+body.vscode-light .hljs-selector-tag { color: #0000ff; }
+body.vscode-light .hljs-built_in,
+body.vscode-light .hljs-type,
+body.vscode-light .hljs-title.class_ { color: #267f99; }
+body.vscode-light .hljs-string,
+body.vscode-light .hljs-attr { color: #a31515; }
+body.vscode-light .hljs-comment,
+body.vscode-light .hljs-quote { color: #008000; font-style: italic; }
+body.vscode-light .hljs-number,
+body.vscode-light .hljs-literal { color: #098658; }
+body.vscode-light .hljs-variable,
+body.vscode-light .hljs-params { color: #001080; }
+body.vscode-light .hljs-title.function_,
+body.vscode-light .hljs-function .hljs-title { color: #795e26; }
+body.vscode-light .hljs-regexp { color: #811f3f; }
+body.vscode-light .hljs-operator,
+body.vscode-light .hljs-punctuation { color: #000; }
+body.vscode-light .hljs-property,
+body.vscode-light .hljs-meta { color: #0070c1; }

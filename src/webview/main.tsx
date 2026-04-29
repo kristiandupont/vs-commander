@@ -7,6 +7,14 @@ import { DirectoryItem, WorkspaceFolder } from "./types";
 import { vscode } from "./webviewApi";
 import { getParentUri } from "./getParentUri";
 import { Pane } from "./Pane";
+import { QuickView, QuickViewState } from "./QuickView";
+
+// Lazy-loaded renderers chunk — only downloaded on first Space press
+let renderersPromise: Promise<typeof import("./renderers")> | null = null;
+const getRenderers = () => {
+  if (!renderersPromise) renderersPromise = import("./renderers");
+  return renderersPromise;
+};
 
 function sortContents(contents: DirectoryItem[]): DirectoryItem[] {
   return [...contents].sort((a, b) => {
@@ -29,6 +37,7 @@ function* App(this: Context) {
   let rightFocusIndex = 0;
   let leftAnchorIndex = 0;
   let rightAnchorIndex = 0;
+  let quickView: QuickViewState | null = null;
 
   // Restore persisted state
   const savedState = vscode.getState();
@@ -218,6 +227,18 @@ function* App(this: Context) {
             }
           });
           saveState();
+
+          if (quickView !== null) {
+            const item = newFocusIndex > 0 ? contents[newFocusIndex - 1] : null;
+            if (item && item.type === "file") {
+              this.refresh(() => {
+                quickView = { status: "loading", fileName: item.name };
+              });
+              vscode.postMessage({ command: "previewFile", uri: item.uri });
+            } else {
+              this.refresh(() => { quickView = null; });
+            }
+          }
         }
         break;
       }
@@ -283,6 +304,31 @@ function* App(this: Context) {
         }
         break;
       }
+      case " ": {
+        e.preventDefault();
+        if (quickView !== null) {
+          this.refresh(() => { quickView = null; });
+          break;
+        }
+        const selected =
+          activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
+        if (selected.size !== 1 || selected.has(0)) break;
+        const idx = [...selected][0];
+        const item = contents[idx - 1];
+        if (!item || item.type === "directory") break;
+        this.refresh(() => {
+          quickView = { status: "loading", fileName: item.name };
+        });
+        vscode.postMessage({ command: "previewFile", uri: item.uri });
+        break;
+      }
+      case "Escape": {
+        if (quickView !== null) {
+          e.preventDefault();
+          this.refresh(() => { quickView = null; });
+        }
+        break;
+      }
     }
   };
 
@@ -328,6 +374,35 @@ function* App(this: Context) {
         }
         break;
       }
+      case "filePreview": {
+        const { type, content, src, extension: ext, fileName } = message;
+        if (type === "binary") {
+          this.refresh(() => { quickView = { status: "binary", fileName }; });
+          break;
+        }
+        if (type === "image") {
+          this.refresh(() => { quickView = { status: "image", src, fileName }; });
+          break;
+        }
+        // text: lazy-load renderers then render
+        getRenderers().then((r) => {
+          const html =
+            type === "markdown"
+              ? r.renderMarkdown(content)
+              : r.renderCode(content, ext || "");
+          this.refresh(() => {
+            if (quickView !== null && quickView.status === "loading") {
+              quickView = {
+                status: "html",
+                html,
+                fileName,
+                isCode: type !== "markdown",
+              };
+            }
+          });
+        });
+        break;
+      }
       case "operationComplete": {
         const pane = message.pane as "left" | "right";
         const uri = pane === "left" ? leftUri : rightUri;
@@ -365,6 +440,12 @@ function* App(this: Context) {
     });
     yield (
       <div class="commander">
+        {quickView && (
+          <QuickView
+            state={quickView}
+            onClose={() => this.refresh(() => { quickView = null; })}
+          />
+        )}
         <Pane
           pane="left"
           uri={leftUri}
