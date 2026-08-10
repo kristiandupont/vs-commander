@@ -21,7 +21,7 @@
         "selector": [
           {
             "scheme": "untitled",
-            "filenamePattern": "VS Commander Session *"
+            "filenamePattern": "VS Commander*"
           }
         ]
       }
@@ -36,6 +36,10 @@
         "title": "Copy (VS Commander)"
       },
       {
+        "command": "vsCommander.move",
+        "title": "Move (VS Commander)"
+      },
+      {
         "command": "vsCommander.mkdir",
         "title": "New Folder (VS Commander)"
       }
@@ -44,6 +48,11 @@
       {
         "command": "vsCommander.copy",
         "key": "F5",
+        "when": "activeCustomEditorId == 'vsCommander.editor'"
+      },
+      {
+        "command": "vsCommander.move",
+        "key": "F6",
         "when": "activeCustomEditorId == 'vsCommander.editor'"
       },
       {

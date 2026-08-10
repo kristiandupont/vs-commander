@@ -7,6 +7,10 @@
 
 .pane {
   flex: 1;
+  /* Without these the pane grows to fit its longest filename, which would make
+     one pane wider than the other; names ellipsize instead (see .col-name) */
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--vscode-panel-border);
@@ -20,7 +24,10 @@
 }
 
 .pane-header input {
+  display: block;
   width: 100%;
+  /* Keep padding and border inside the 100%, so the box stays within the frame */
+  box-sizing: border-box;
   padding: 2px 4px;
   border: 1px solid var(--vscode-input-border);
   background-color: var(--vscode-input-background);
@@ -32,6 +39,7 @@
 .pane-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   background-color: var(--vscode-editor-background);
 }
 
@@ -130,7 +138,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: var(--vscode-titleBar-activeBackground, var(--vscode-editor-background));
+  background: var(
+    --vscode-titleBar-activeBackground,
+    var(--vscode-editor-background)
+  );
   border-bottom: 1px solid var(--vscode-panel-border);
   flex-shrink: 0;
 }
@@ -170,6 +181,34 @@
   padding: 32px;
 }
 
+.quickview-stats {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px 0;
+}
+
+.quickview-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.quickview-stat-label {
+  color: var(--vscode-descriptionForeground);
+}
+
+.quickview-stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.quickview-stat-note {
+  margin-top: 16px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
 .quickview-image {
   max-width: 100%;
   max-height: 100%;
@@ -204,10 +243,12 @@
   padding-bottom: 4px;
 }
 
-.quickview-markdown p { margin: 8px 0; }
+.quickview-markdown p {
+  margin: 8px 0;
+}
 
 .quickview-markdown pre {
-  background: var(--vscode-textBlockQuote-background, rgba(128,128,128,0.1));
+  background: var(--vscode-textBlockQuote-background, rgba(128, 128, 128, 0.1));
   padding: 12px;
   border-radius: 4px;
   overflow: auto;
@@ -218,21 +259,28 @@
 .quickview-markdown code {
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 0.9em;
-  background: var(--vscode-textBlockQuote-background, rgba(128,128,128,0.1));
+  background: var(--vscode-textBlockQuote-background, rgba(128, 128, 128, 0.1));
   padding: 1px 4px;
   border-radius: 2px;
 }
 
-.quickview-markdown pre code { background: none; padding: 0; }
+.quickview-markdown pre code {
+  background: none;
+  padding: 0;
+}
 
 .quickview-markdown blockquote {
   border-left: 4px solid var(--vscode-textBlockQuote-border, #555);
   margin: 0;
   padding: 4px 16px;
-  background: var(--vscode-textBlockQuote-background, rgba(128,128,128,0.1));
+  background: var(--vscode-textBlockQuote-background, rgba(128, 128, 128, 0.1));
 }
 
-.quickview-markdown table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.quickview-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
 
 .quickview-markdown th,
 .quickview-markdown td {
@@ -240,9 +288,13 @@
   padding: 6px 12px;
 }
 
-.quickview-markdown th { background: var(--vscode-editor-inactiveSelectionBackground); }
+.quickview-markdown th {
+  background: var(--vscode-editor-inactiveSelectionBackground);
+}
 
-.quickview-markdown a { color: var(--vscode-textLink-foreground); }
+.quickview-markdown a {
+  color: var(--vscode-textLink-foreground);
+}
 
 .quickview-markdown hr {
   border: none;
@@ -252,61 +304,127 @@
 
 /* ── highlight.js — Dark+ colours (default VS Code dark theme) ─── */
 
-.hljs { color: #d4d4d4; }
+.hljs {
+  color: #d4d4d4;
+}
 .hljs-keyword,
-.hljs-selector-tag { color: #569cd6; }
+.hljs-selector-tag {
+  color: #569cd6;
+}
 .hljs-built_in,
 .hljs-type,
-.hljs-title.class_ { color: #4ec9b0; }
+.hljs-title.class_ {
+  color: #4ec9b0;
+}
 .hljs-string,
 .hljs-attr,
-.hljs-template-variable { color: #ce9178; }
+.hljs-template-variable {
+  color: #ce9178;
+}
 .hljs-comment,
-.hljs-quote { color: #6a9955; font-style: italic; }
+.hljs-quote {
+  color: #6a9955;
+  font-style: italic;
+}
 .hljs-number,
-.hljs-literal { color: #b5cea8; }
+.hljs-literal {
+  color: #b5cea8;
+}
 .hljs-variable,
-.hljs-params { color: #9cdcfe; }
+.hljs-params {
+  color: #9cdcfe;
+}
 .hljs-title.function_,
-.hljs-function .hljs-title { color: #dcdcaa; }
+.hljs-function .hljs-title {
+  color: #dcdcaa;
+}
 .hljs-tag,
-.hljs-name { color: #569cd6; }
-.hljs-attribute { color: #9cdcfe; }
+.hljs-name {
+  color: #569cd6;
+}
+.hljs-attribute {
+  color: #9cdcfe;
+}
 .hljs-regexp,
-.hljs-link { color: #d16969; }
+.hljs-link {
+  color: #d16969;
+}
 .hljs-symbol,
-.hljs-bullet { color: #4fc1ff; }
-.hljs-section { color: #ffd700; }
-.hljs-addition { color: #b5cea8; background: rgba(181,206,168,.1); }
-.hljs-deletion { color: #f44747; background: rgba(244,71,71,.1); }
-.hljs-emphasis { font-style: italic; }
-.hljs-strong { font-weight: bold; }
+.hljs-bullet {
+  color: #4fc1ff;
+}
+.hljs-section {
+  color: #ffd700;
+}
+.hljs-addition {
+  color: #b5cea8;
+  background: rgba(181, 206, 168, 0.1);
+}
+.hljs-deletion {
+  color: #f44747;
+  background: rgba(244, 71, 71, 0.1);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: bold;
+}
 .hljs-operator,
-.hljs-punctuation { color: #d4d4d4; }
+.hljs-punctuation {
+  color: #d4d4d4;
+}
 .hljs-property,
-.hljs-meta { color: #9cdcfe; }
+.hljs-meta {
+  color: #9cdcfe;
+}
 .hljs-selector-id,
-.hljs-selector-class { color: #d7ba7d; }
+.hljs-selector-class {
+  color: #d7ba7d;
+}
 
 /* Light theme overrides */
-body.vscode-light .hljs { color: #000; }
+body.vscode-light .hljs {
+  color: #000;
+}
 body.vscode-light .hljs-keyword,
-body.vscode-light .hljs-selector-tag { color: #0000ff; }
+body.vscode-light .hljs-selector-tag {
+  color: #0000ff;
+}
 body.vscode-light .hljs-built_in,
 body.vscode-light .hljs-type,
-body.vscode-light .hljs-title.class_ { color: #267f99; }
+body.vscode-light .hljs-title.class_ {
+  color: #267f99;
+}
 body.vscode-light .hljs-string,
-body.vscode-light .hljs-attr { color: #a31515; }
+body.vscode-light .hljs-attr {
+  color: #a31515;
+}
 body.vscode-light .hljs-comment,
-body.vscode-light .hljs-quote { color: #008000; font-style: italic; }
+body.vscode-light .hljs-quote {
+  color: #008000;
+  font-style: italic;
+}
 body.vscode-light .hljs-number,
-body.vscode-light .hljs-literal { color: #098658; }
+body.vscode-light .hljs-literal {
+  color: #098658;
+}
 body.vscode-light .hljs-variable,
-body.vscode-light .hljs-params { color: #001080; }
+body.vscode-light .hljs-params {
+  color: #001080;
+}
 body.vscode-light .hljs-title.function_,
-body.vscode-light .hljs-function .hljs-title { color: #795e26; }
-body.vscode-light .hljs-regexp { color: #811f3f; }
+body.vscode-light .hljs-function .hljs-title {
+  color: #795e26;
+}
+body.vscode-light .hljs-regexp {
+  color: #811f3f;
+}
 body.vscode-light .hljs-operator,
-body.vscode-light .hljs-punctuation { color: #000; }
+body.vscode-light .hljs-punctuation {
+  color: #000;
+}
 body.vscode-light .hljs-property,
-body.vscode-light .hljs-meta { color: #0070c1; }
+body.vscode-light .hljs-meta {
+  color: #0070c1;
+}

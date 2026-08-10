@@ -12,6 +12,8 @@ A VS Code extension that provides a Norton Commander style dual-pane file manage
 - **Keyboard navigation**: Use arrow keys to move selection, Shift+arrow for multi-selection
 - **Selection system**: Single selection per window, Shift+arrow for multi-selection
 - **Parent directory**: ".." item at the top to go up one level (click or Enter)
+- **File operations**: Copy, move, rename, delete, and create folders
+- **Quick View**: Peek at a file's contents — or a folder's size and file count — without opening it
 - Works with both local and remote files (via VS Code's remote development)
 
 ## Usage
@@ -32,6 +34,20 @@ A VS Code extension that provides a Norton Commander style dual-pane file manage
 - **Parent directory**: Select ".." (top item) and press Enter to go up one level
 - **Path input**: Type directly in path fields and press Enter to navigate
 - **Multiple windows**: Open multiple commander tabs to have different panes open simultaneously
+
+### Keyboard shortcuts
+
+| Key      | Action                                                     |
+| -------- | ---------------------------------------------------------- |
+| Arrows   | Move selection (Shift extends it)                          |
+| Tab      | Switch pane                                                |
+| Enter    | Enter directory / open file                                |
+| Space    | Quick View of the selected file or folder (Space or Escape closes) |
+| F2       | Rename                                                     |
+| F5       | Copy selection to the directory shown in the opposite pane |
+| F6       | Move selection to the directory shown in the opposite pane |
+| F7       | New folder                                                 |
+| Delete   | Delete selection (with confirmation)                       |
 
 ## Development
 

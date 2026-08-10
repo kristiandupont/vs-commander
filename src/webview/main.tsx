@@ -152,7 +152,9 @@ function* App(this: Context) {
     }
   };
 
-  const triggerCopy = () => {
+  // Copy and move both send the selection of the active pane to the directory
+  // the opposite pane is showing
+  const triggerTransfer = (command: "copyFiles" | "moveFiles") => {
     const selected =
       activePane === "left" ? leftSelectedIndices : rightSelectedIndices;
     const otherPane = activePane === "left" ? "right" : "left";
@@ -164,14 +166,28 @@ function* App(this: Context) {
       .filter(Boolean) as string[];
     if (uris.length > 0 && targetUri) {
       vscode.postMessage({
-        command: "copyFiles",
+        command,
         uris,
         targetDirectoryUri: targetUri,
         pane: activePane,
       });
-      // Reload destination immediately so the round-trip overlaps with the copy
+      // Reload destination immediately so the round-trip overlaps with the write
       loadDirectory(targetUri, otherPane);
     }
+  };
+
+  const triggerCopy = () => triggerTransfer("copyFiles");
+  const triggerMove = () => triggerTransfer("moveFiles");
+
+  const openQuickView = (item: DirectoryItem) => {
+    this.refresh(() => {
+      quickView = { status: "loading", fileName: item.name };
+    });
+    vscode.postMessage({
+      command: "previewFile",
+      uri: item.uri,
+      isDirectory: item.type === "directory",
+    });
   };
 
   const handleKeyboard = (e: KeyboardEvent) => {
@@ -230,11 +246,8 @@ function* App(this: Context) {
 
           if (quickView !== null) {
             const item = newFocusIndex > 0 ? contents[newFocusIndex - 1] : null;
-            if (item && item.type === "file") {
-              this.refresh(() => {
-                quickView = { status: "loading", fileName: item.name };
-              });
-              vscode.postMessage({ command: "previewFile", uri: item.uri });
+            if (item) {
+              openQuickView(item);
             } else {
               this.refresh(() => { quickView = null; });
             }
@@ -292,6 +305,11 @@ function* App(this: Context) {
         triggerCopy();
         break;
       }
+      case "F6": {
+        e.preventDefault();
+        triggerMove();
+        break;
+      }
       case "F7": {
         e.preventDefault();
         const currentUri = activePane === "left" ? leftUri : rightUri;
@@ -315,11 +333,8 @@ function* App(this: Context) {
         if (selected.size !== 1 || selected.has(0)) break;
         const idx = [...selected][0];
         const item = contents[idx - 1];
-        if (!item || item.type === "directory") break;
-        this.refresh(() => {
-          quickView = { status: "loading", fileName: item.name };
-        });
-        vscode.postMessage({ command: "previewFile", uri: item.uri });
+        if (!item) break;
+        openQuickView(item);
         break;
       }
       case "Escape": {
@@ -363,6 +378,10 @@ function* App(this: Context) {
         triggerCopy();
         break;
       }
+      case "triggerMove": {
+        triggerMove();
+        break;
+      }
       case "triggerMkdir": {
         const currentUri = activePane === "left" ? leftUri : rightUri;
         if (currentUri) {
@@ -375,9 +394,17 @@ function* App(this: Context) {
         break;
       }
       case "filePreview": {
-        const { type, content, src, extension: ext, fileName } = message;
+        const { type, content, src, extension: ext, fileName, summary } = message;
         if (type === "binary") {
           this.refresh(() => { quickView = { status: "binary", fileName }; });
+          break;
+        }
+        if (type === "directory") {
+          // Scanning takes a moment, so a fast arrow-key run can outpace it
+          if (quickView?.fileName !== fileName) break;
+          this.refresh(() => {
+            quickView = { status: "directory", fileName, summary };
+          });
           break;
         }
         if (type === "image") {

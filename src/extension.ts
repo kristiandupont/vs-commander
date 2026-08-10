@@ -20,6 +20,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("vsCommander.move", () => {
+      provider.triggerMoveInActivePanel();
+    }),
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("vsCommander.mkdir", () => {
       provider.triggerMkdirInActivePanel();
     }),
@@ -29,10 +35,9 @@ export function activate(context: vscode.ExtensionContext) {
   let disposable = vscode.commands.registerCommand(
     "vsCommander.new",
     async () => {
-      const sessionId = Date.now().toString();
-      const uri = vscode.Uri.parse(
-        `untitled:VS Commander Session ${sessionId}`,
-      );
+      // The tab label is the basename of the document URI, so the session id
+      // goes in the query: distinct URIs, but every tab reads "VS Commander"
+      const uri = vscode.Uri.parse(`untitled:VS Commander?${Date.now()}`);
       await vscode.commands.executeCommand(
         "vscode.openWith",
         uri,
@@ -58,6 +63,10 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   triggerCopyInActivePanel() {
     this._activePanel?.webview.postMessage({ command: "triggerCopy" });
+  }
+
+  triggerMoveInActivePanel() {
+    this._activePanel?.webview.postMessage({ command: "triggerMove" });
   }
 
   triggerMkdirInActivePanel() {
@@ -180,6 +189,15 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
           case "previewFile": {
             const fileUri = vscode.Uri.parse(message.uri);
             const fileName = fileUri.path.split("/").pop() || "";
+            if (message.isDirectory) {
+              webviewPanel.webview.postMessage({
+                command: "filePreview",
+                type: "directory",
+                summary: await summarizeDirectory(fileUri),
+                fileName,
+              });
+              return;
+            }
             const ext = fileName.includes(".")
               ? fileName.split(".").pop()!.toLowerCase()
               : "";
@@ -283,6 +301,30 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
             });
             return;
           }
+          case "moveFiles": {
+            const uris: string[] = message.uris;
+            const targetDirUri = vscode.Uri.parse(message.targetDirectoryUri);
+            for (const uriStr of uris) {
+              const srcUri = vscode.Uri.parse(uriStr);
+              const name = srcUri.path.split("/").pop() || "";
+              const destUri = vscode.Uri.joinPath(targetDirUri, name);
+              // Both panes may show the same directory — moving onto itself is a no-op
+              if (destUri.toString() === srcUri.toString()) continue;
+              try {
+                await vscode.workspace.fs.rename(srcUri, destUri, {
+                  overwrite: false,
+                });
+              } catch (err) {
+                vscode.window.showErrorMessage(`Move failed for ${name}: ${err}`);
+              }
+            }
+            webviewPanel.webview.postMessage({
+              command: "operationComplete",
+              pane: message.pane,
+              reloadOtherPane: true,
+            });
+            return;
+          }
         }
       },
     );
@@ -358,6 +400,85 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
       </body>
       </html>`;
   }
+}
+
+interface DirectorySummary {
+  files: number;
+  folders: number;
+  totalSize: number;
+  truncated: boolean;
+}
+
+// Quick View has to stay quick, so the walk gives up once either budget is
+// spent and reports what it managed to count as a lower bound
+const SCAN_ENTRY_LIMIT = 50000;
+const SCAN_TIME_BUDGET_MS = 1500;
+// readDirectory has no sizes, so every file costs a stat; batching them keeps
+// the walk from being one round-trip deep, which matters most on remote hosts
+const STAT_CONCURRENCY = 64;
+
+async function summarizeDirectory(uri: vscode.Uri): Promise<DirectorySummary> {
+  const summary: DirectorySummary = {
+    files: 0,
+    folders: 0,
+    totalSize: 0,
+    truncated: false,
+  };
+  const deadline = Date.now() + SCAN_TIME_BUDGET_MS;
+  const queue: vscode.Uri[] = [uri];
+  let seen = 0;
+  const exhausted = () => seen >= SCAN_ENTRY_LIMIT || Date.now() > deadline;
+
+  while (queue.length > 0) {
+    if (exhausted()) {
+      summary.truncated = true;
+      break;
+    }
+    const dir = queue.shift()!;
+    let entries: [string, vscode.FileType][];
+    try {
+      entries = await vscode.workspace.fs.readDirectory(dir);
+    } catch {
+      continue; // unreadable directory — skip it rather than fail the preview
+    }
+    const filesToStat: vscode.Uri[] = [];
+    for (const [name, type] of entries) {
+      if (exhausted()) {
+        summary.truncated = true;
+        break;
+      }
+      seen++;
+      const childUri = vscode.Uri.joinPath(dir, name);
+      // Exact match excludes symlinked directories, which keeps the walk finite;
+      // they count as files, and stat resolves to the link target's size
+      if (type === vscode.FileType.Directory) {
+        summary.folders++;
+        queue.push(childUri);
+      } else {
+        summary.files++;
+        filesToStat.push(childUri);
+      }
+    }
+    summary.totalSize += await totalSizeOf(filesToStat);
+  }
+  return summary;
+}
+
+async function totalSizeOf(uris: vscode.Uri[]): Promise<number> {
+  let total = 0;
+  for (let i = 0; i < uris.length; i += STAT_CONCURRENCY) {
+    const sizes = await Promise.all(
+      uris.slice(i, i + STAT_CONCURRENCY).map(async (uri) => {
+        try {
+          return (await vscode.workspace.fs.stat(uri)).size;
+        } catch {
+          return 0; // size unavailable
+        }
+      }),
+    );
+    for (const size of sizes) total += size;
+  }
+  return total;
 }
 
 function getNonce(): string {

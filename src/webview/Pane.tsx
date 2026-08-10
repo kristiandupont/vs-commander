@@ -1,17 +1,14 @@
 /** @jsxImportSource @b9g/crank */
 
 import { getParentUri } from "./getParentUri";
+import { displayPathToUri, uriToDisplayPath } from "./displayPath";
+import { formatBytes } from "./formatBytes";
 import { DirectoryItem } from "./types";
 
 function formatSize(item: DirectoryItem): string {
   if (item.type === "directory") return "<DIR>";
   if (item.size === undefined) return "";
-  const size = item.size;
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  if (size < 1024 * 1024 * 1024)
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  return formatBytes(item.size);
 }
 
 function formatDate(ms?: number): string {
@@ -47,6 +44,7 @@ export function Pane({
   onItemSelect,
 }: PaneProps) {
   const parentUri = getParentUri(uri);
+  const displayPath = uriToDisplayPath(uri);
 
   return (
     <div class={{ pane: true, active: isActive }} id={`${pane}-pane`}>
@@ -55,10 +53,15 @@ export function Pane({
           type="text"
           id={`${pane}-path`}
           placeholder="Path"
-          value={uri}
+          value={displayPath}
+          title={displayPath}
           onkeydown={(e: KeyboardEvent) => {
             if (e.key === "Enter") {
-              onNavigate((e.target as HTMLInputElement).value);
+              const target = displayPathToUri(
+                (e.target as HTMLInputElement).value,
+                uri,
+              );
+              if (target) onNavigate(target);
             }
           }}
         />
@@ -95,6 +98,7 @@ export function Pane({
                 selected: selectedIndices.has(actualIndex),
                 focused: isFocused,
               }}
+              title={item.name}
               data-uri={item.uri}
               onclick={(e: MouseEvent) => onItemSelect(actualIndex, e.shiftKey)}
             >
