@@ -37,6 +37,10 @@ const EXT_TO_LANG: Record<string, string> = {
   vim: "vim",
 };
 
+// highlightAuto tries every bundled language, which locks up the webview for
+// seconds on large input, so above this size unknown types render as plain text
+const MAX_AUTO_DETECT_CHARS = 64 * 1024;
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -54,6 +58,7 @@ export function renderCode(content: string, ext: string): string {
     if (lang && hljs.getLanguage(lang)) {
       return hljs.highlight(content, { language: lang }).value;
     }
+    if (content.length > MAX_AUTO_DETECT_CHARS) return escapeHtml(content);
     return hljs.highlightAuto(content).value;
   } catch {
     return escapeHtml(content);

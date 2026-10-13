@@ -8,6 +8,7 @@ export type QuickViewState =
   | { status: "html"; html: string; fileName: string; isCode: boolean }
   | { status: "image"; src: string; fileName: string }
   | { status: "binary"; fileName: string }
+  | { status: "tooLarge"; fileName: string }
   | { status: "directory"; fileName: string; summary: DirectorySummary };
 
 function DirectorySummaryView({ summary }: { summary: DirectorySummary }) {
@@ -66,6 +67,9 @@ export function QuickView({
           )}
           {state.status === "binary" && (
             <div class="quickview-placeholder">Binary file</div>
+          )}
+          {state.status === "tooLarge" && (
+            <div class="quickview-placeholder">File too large to preview</div>
           )}
           {state.status === "directory" && (
             <DirectorySummaryView summary={state.summary} />

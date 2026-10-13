@@ -38,6 +38,8 @@ function* App(this: Context) {
   let leftAnchorIndex = 0;
   let rightAnchorIndex = 0;
   let quickView: QuickViewState | null = null;
+  // Incremented per preview request; replies carrying an older id are stale
+  let quickViewRequestId = 0;
 
   // Restore persisted state
   const savedState = vscode.getState();
@@ -185,6 +187,7 @@ function* App(this: Context) {
     });
     vscode.postMessage({
       command: "previewFile",
+      requestId: ++quickViewRequestId,
       uri: item.uri,
       isDirectory: item.type === "directory",
     });
@@ -300,28 +303,6 @@ function* App(this: Context) {
         }
         break;
       }
-      case "F5": {
-        e.preventDefault();
-        triggerCopy();
-        break;
-      }
-      case "F6": {
-        e.preventDefault();
-        triggerMove();
-        break;
-      }
-      case "F7": {
-        e.preventDefault();
-        const currentUri = activePane === "left" ? leftUri : rightUri;
-        if (currentUri) {
-          vscode.postMessage({
-            command: "mkdir",
-            currentDirectoryUri: currentUri,
-            pane: activePane,
-          });
-        }
-        break;
-      }
       case " ": {
         e.preventDefault();
         if (quickView !== null) {
@@ -364,6 +345,10 @@ function* App(this: Context) {
         break;
       }
       case "directoryContents": {
+        // A slow listing for a folder the pane has since left must not replace
+        // the current one
+        const paneUri = message.pane === "left" ? leftUri : rightUri;
+        if (message.uri !== paneUri) break;
         this.refresh(() => {
           const sorted = sortContents(message.contents);
           if (message.pane === "left") {
@@ -395,13 +380,15 @@ function* App(this: Context) {
       }
       case "filePreview": {
         const { type, content, src, extension: ext, fileName, summary } = message;
-        if (type === "binary") {
-          this.refresh(() => { quickView = { status: "binary", fileName }; });
+        // Drop replies for a closed overlay or a file the user has moved past
+        const isCurrent = () =>
+          quickView !== null && message.requestId === quickViewRequestId;
+        if (!isCurrent()) break;
+        if (type === "binary" || type === "tooLarge") {
+          this.refresh(() => { quickView = { status: type, fileName }; });
           break;
         }
         if (type === "directory") {
-          // Scanning takes a moment, so a fast arrow-key run can outpace it
-          if (quickView?.fileName !== fileName) break;
           this.refresh(() => {
             quickView = { status: "directory", fileName, summary };
           });
@@ -418,7 +405,7 @@ function* App(this: Context) {
               ? r.renderMarkdown(content)
               : r.renderCode(content, ext || "");
           this.refresh(() => {
-            if (quickView !== null && quickView.status === "loading") {
+            if (isCurrent()) {
               quickView = {
                 status: "html",
                 html,

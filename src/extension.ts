@@ -117,6 +117,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
               command: "directoryContents",
               contents,
               pane: message.pane,
+              uri: message.uri,
             });
             return;
           }
@@ -174,6 +175,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 try {
                   await vscode.workspace.fs.delete(vscode.Uri.parse(uriStr), {
                     recursive: true,
+                    useTrash: true,
                   });
                 } catch (err) {
                   vscode.window.showErrorMessage(`Delete failed: ${err}`);
@@ -189,12 +191,18 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
           case "previewFile": {
             const fileUri = vscode.Uri.parse(message.uri);
             const fileName = fileUri.path.split("/").pop() || "";
-            if (message.isDirectory) {
+            // The webview drops replies whose requestId isn't its latest one
+            const reply = (preview: Record<string, unknown>) =>
               webviewPanel.webview.postMessage({
                 command: "filePreview",
+                requestId: message.requestId,
+                fileName,
+                ...preview,
+              });
+            if (message.isDirectory) {
+              reply({
                 type: "directory",
                 summary: await summarizeDirectory(fileUri),
-                fileName,
               });
               return;
             }
@@ -204,16 +212,21 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
             const IMAGE_EXTS = new Set([
               "png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico", "tiff",
             ]);
+            const isImage = IMAGE_EXTS.has(ext);
+            // Check the size before reading so a multi-GB file is never loaded
             let bytes: Uint8Array;
             try {
+              const { size } = await vscode.workspace.fs.stat(fileUri);
+              if (size > (isImage ? MAX_IMAGE_PREVIEW_BYTES : MAX_TEXT_PREVIEW_BYTES)) {
+                reply({ type: "tooLarge" });
+                return;
+              }
               bytes = await vscode.workspace.fs.readFile(fileUri);
             } catch {
-              webviewPanel.webview.postMessage({
-                command: "filePreview", type: "binary", fileName,
-              });
+              reply({ type: "binary" });
               return;
             }
-            if (IMAGE_EXTS.has(ext)) {
+            if (isImage) {
               const mimeMap: Record<string, string> = {
                 jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
                 gif: "image/gif", svg: "image/svg+xml", webp: "image/webp",
@@ -221,36 +234,23 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
               };
               const mime = mimeMap[ext] || `image/${ext}`;
               const base64 = Buffer.from(bytes).toString("base64");
-              webviewPanel.webview.postMessage({
-                command: "filePreview", type: "image",
-                src: `data:${mime};base64,${base64}`, fileName,
-              });
+              reply({ type: "image", src: `data:${mime};base64,${base64}` });
               return;
             }
-            // 1 MB cap and binary detection via null bytes
-            if (bytes.length > 1024 * 1024) {
-              webviewPanel.webview.postMessage({
-                command: "filePreview", type: "binary", fileName,
-              });
-              return;
-            }
+            // Binary detection via null bytes
             const checkLen = Math.min(bytes.length, 8192);
             for (let i = 0; i < checkLen; i++) {
               if (bytes[i] === 0) {
-                webviewPanel.webview.postMessage({
-                  command: "filePreview", type: "binary", fileName,
-                });
+                reply({ type: "binary" });
                 return;
               }
             }
             const content = new TextDecoder("utf-8").decode(bytes);
             const isMarkdown = ext === "md" || ext === "markdown" || ext === "mdx";
-            webviewPanel.webview.postMessage({
-              command: "filePreview",
+            reply({
               type: isMarkdown ? "markdown" : "code",
               content,
               extension: ext,
-              fileName,
             });
             return;
           }
@@ -361,7 +361,9 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
           } catch { /* stat unavailable */ }
           return {
             name,
-            type: type === vscode.FileType.Directory ? "directory" : "file",
+            // Bitmask test so symlinked directories (Directory | SymbolicLink)
+            // are listed as directories too
+            type: type & vscode.FileType.Directory ? "directory" : "file",
             uri: itemUri.toString(),
             size,
             lastModified,
@@ -401,6 +403,10 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
       </html>`;
   }
 }
+
+// Images are base64-encoded and sent through postMessage, so they get a cap too
+const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024;
+const MAX_IMAGE_PREVIEW_BYTES = 20 * 1024 * 1024;
 
 interface DirectorySummary {
   files: number;
