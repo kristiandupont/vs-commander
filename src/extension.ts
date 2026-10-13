@@ -141,6 +141,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 return null;
               },
             });
+            let renamedUri: string | undefined;
             if (newName && newName.trim() !== oldName) {
               const pathParts = oldUri.path.split("/");
               pathParts.pop();
@@ -148,6 +149,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
               const newUri = vscode.Uri.joinPath(parentUri, newName.trim());
               try {
                 await vscode.workspace.fs.rename(oldUri, newUri);
+                renamedUri = newUri.toString();
               } catch (err) {
                 vscode.window.showErrorMessage(`Rename failed: ${err}`);
               }
@@ -155,6 +157,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
             webviewPanel.webview.postMessage({
               command: "operationComplete",
               pane: message.pane,
+              focusUri: renamedUri,
             });
             return;
           }
@@ -175,7 +178,6 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 try {
                   await vscode.workspace.fs.delete(vscode.Uri.parse(uriStr), {
                     recursive: true,
-                    useTrash: true,
                   });
                 } catch (err) {
                   vscode.window.showErrorMessage(`Delete failed: ${err}`);
@@ -265,10 +267,12 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 return null;
               },
             });
+            let createdUri: string | undefined;
             if (folderName && folderName.trim()) {
               const newDirUri = vscode.Uri.joinPath(dirUri, folderName.trim());
               try {
                 await vscode.workspace.fs.createDirectory(newDirUri);
+                createdUri = newDirUri.toString();
               } catch (err) {
                 vscode.window.showErrorMessage(`Create folder failed: ${err}`);
               }
@@ -276,6 +280,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
             webviewPanel.webview.postMessage({
               command: "operationComplete",
               pane: message.pane,
+              focusUri: createdUri,
             });
             return;
           }

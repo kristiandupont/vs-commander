@@ -8,6 +8,14 @@ import { vscode } from "./webviewApi";
 import { getParentUri } from "./getParentUri";
 import { Pane } from "./Pane";
 import { QuickView, QuickViewState } from "./QuickView";
+import {
+  PaneSelection,
+  PaneSelectionKeys,
+  initialSelection,
+  selectionFromKeys,
+  selectionOfUri,
+  selectionToKeys,
+} from "./paneSelection";
 
 // Lazy-loaded renderers chunk — only downloaded on first Space press
 let renderersPromise: Promise<typeof import("./renderers")> | null = null;
@@ -40,6 +48,44 @@ function* App(this: Context) {
   let quickView: QuickViewState | null = null;
   // Incremented per preview request; replies carrying an older id are stale
   let quickViewRequestId = 0;
+  // Selection to apply when the pane's next listing arrives, in place of the
+  // current one: the restored state, or the item a rename/mkdir just created
+  let leftPendingSelection: PaneSelectionKeys | null = null;
+  let rightPendingSelection: PaneSelectionKeys | null = null;
+
+  const getSelection = (pane: "left" | "right"): PaneSelection =>
+    pane === "left"
+      ? {
+        selected: leftSelectedIndices,
+        focus: leftFocusIndex,
+        anchor: leftAnchorIndex,
+      }
+      : {
+        selected: rightSelectedIndices,
+        focus: rightFocusIndex,
+        anchor: rightAnchorIndex,
+      };
+
+  const setSelection = (pane: "left" | "right", selection: PaneSelection) => {
+    if (pane === "left") {
+      leftSelectedIndices = selection.selected;
+      leftFocusIndex = selection.focus;
+      leftAnchorIndex = selection.anchor;
+    } else {
+      rightSelectedIndices = selection.selected;
+      rightFocusIndex = selection.focus;
+      rightAnchorIndex = selection.anchor;
+    }
+  };
+
+  // Indices are only meaningful for the listing they were made against, so the
+  // selection is persisted by URI
+  const selectionKeys = (pane: "left" | "right"): PaneSelectionKeys =>
+    (pane === "left" ? leftPendingSelection : rightPendingSelection) ??
+    selectionToKeys(
+      pane === "left" ? leftContents : rightContents,
+      getSelection(pane),
+    );
 
   // Restore persisted state
   const savedState = vscode.getState();
@@ -49,12 +95,8 @@ function* App(this: Context) {
     leftUri = savedState.leftUri || "";
     rightUri = savedState.rightUri || "";
     activePane = savedState.activePane || "left";
-    leftSelectedIndices = new Set(savedState.leftSelectedIndices || [0]);
-    rightSelectedIndices = new Set(savedState.rightSelectedIndices || [0]);
-    leftFocusIndex = savedState.leftFocusIndex || 0;
-    rightFocusIndex = savedState.rightFocusIndex || 0;
-    leftAnchorIndex = savedState.leftAnchorIndex || 0;
-    rightAnchorIndex = savedState.rightAnchorIndex || 0;
+    leftPendingSelection = savedState.leftSelection ?? null;
+    rightPendingSelection = savedState.rightSelection ?? null;
   }
 
   const saveState = () => {
@@ -62,12 +104,8 @@ function* App(this: Context) {
       leftUri,
       rightUri,
       activePane,
-      leftSelectedIndices: Array.from(leftSelectedIndices),
-      rightSelectedIndices: Array.from(rightSelectedIndices),
-      leftFocusIndex,
-      rightFocusIndex,
-      leftAnchorIndex,
-      rightAnchorIndex,
+      leftSelection: selectionKeys("left"),
+      rightSelection: selectionKeys("right"),
     });
   };
 
@@ -79,15 +117,12 @@ function* App(this: Context) {
     this.refresh(() => {
       if (pane === "left") {
         leftUri = uri;
-        leftFocusIndex = 0;
-        leftAnchorIndex = 0;
-        leftSelectedIndices = new Set([0]);
+        leftPendingSelection = null;
       } else {
         rightUri = uri;
-        rightFocusIndex = 0;
-        rightAnchorIndex = 0;
-        rightSelectedIndices = new Set([0]);
+        rightPendingSelection = null;
       }
+      setSelection(pane, initialSelection());
     });
     loadDirectory(uri, pane);
     saveState();
@@ -349,14 +384,25 @@ function* App(this: Context) {
         // the current one
         const paneUri = message.pane === "left" ? leftUri : rightUri;
         if (message.uri !== paneUri) break;
+        const pane = message.pane as "left" | "right";
         this.refresh(() => {
           const sorted = sortContents(message.contents);
-          if (message.pane === "left") {
+          const keys = selectionKeys(pane);
+          const selection = selectionFromKeys(
+            sorted,
+            keys,
+            getSelection(pane).focus,
+          );
+          if (pane === "left") {
             leftContents = sorted;
+            leftPendingSelection = null;
           } else {
             rightContents = sorted;
+            rightPendingSelection = null;
           }
+          setSelection(pane, selection);
         });
+        saveState();
         break;
       }
       case "triggerCopy": {
@@ -420,6 +466,14 @@ function* App(this: Context) {
       case "operationComplete": {
         const pane = message.pane as "left" | "right";
         const uri = pane === "left" ? leftUri : rightUri;
+        // Rename and mkdir report the item they created so focus moves to it
+        if (message.focusUri) {
+          if (pane === "left") {
+            leftPendingSelection = selectionOfUri(message.focusUri);
+          } else {
+            rightPendingSelection = selectionOfUri(message.focusUri);
+          }
+        }
         if (uri) loadDirectory(uri, pane);
         if (message.reloadOtherPane) {
           const otherPane = pane === "left" ? "right" : "left";
