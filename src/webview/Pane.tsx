@@ -29,6 +29,8 @@ interface PaneProps {
   selectedIndices: Set<number>;
   focusIndex: number;
   isActive: boolean;
+  // Active pane and the webview has keyboard focus
+  hasFocus: boolean;
   onNavigate: (uri: string) => void;
   onItemSelect: (index: number, shiftKey: boolean) => void;
 }
@@ -40,6 +42,7 @@ export function Pane({
   selectedIndices,
   focusIndex,
   isActive,
+  hasFocus,
   onNavigate,
   onItemSelect,
 }: PaneProps) {
@@ -47,7 +50,7 @@ export function Pane({
   const displayPath = uriToDisplayPath(uri);
 
   return (
-    <div class={{ pane: true, active: isActive }} id={`${pane}-pane`}>
+    <div class={{ pane: true, active: isActive, "has-focus": hasFocus }} id={`${pane}-pane`}>
       <div class="pane-header">
         <input
           type="text"

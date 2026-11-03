@@ -88,12 +88,20 @@
   background-color: var(--vscode-list-hoverBackground);
 }
 
+/* Same as VS Code lists: the focused pane uses the active selection colours,
+   the other pane (or both, when the webview lacks focus) the inactive ones */
 .item.selected {
+  background-color: var(--vscode-list-inactiveSelectionBackground);
+  color: var(--vscode-list-inactiveSelectionForeground);
+}
+
+.pane.has-focus .item.selected {
   background-color: var(--vscode-list-activeSelectionBackground);
   color: var(--vscode-list-activeSelectionForeground);
 }
 
-.item.focused {
+/* The cursor row is only outlined while its pane has keyboard focus */
+.pane.has-focus .item.focused {
   border-color: var(--vscode-focusBorder);
   outline: 1px solid var(--vscode-focusBorder);
 }

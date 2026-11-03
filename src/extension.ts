@@ -31,6 +31,12 @@ export function activate(context: vscode.ExtensionContext) {
     }),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vsCommander.togglePanes", () => {
+      provider.triggerTogglePanesInActivePanel();
+    }),
+  );
+
   // Register command to create a new commander window
   let disposable = vscode.commands.registerCommand(
     "vsCommander.new",
@@ -71,6 +77,10 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   triggerMkdirInActivePanel() {
     this._activePanel?.webview.postMessage({ command: "triggerMkdir" });
+  }
+
+  triggerTogglePanesInActivePanel() {
+    this._activePanel?.webview.postMessage({ command: "triggerTogglePanes" });
   }
 
   async openCustomDocument(

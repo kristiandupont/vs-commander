@@ -33,12 +33,21 @@ function sortContents(contents: DirectoryItem[]): DirectoryItem[] {
   });
 }
 
+// Each pane needs room for the fixed size and date columns plus a readable name
+const MIN_TWO_PANE_WIDTH = 800;
+
 function* App(this: Context) {
   let leftUri = "";
   let rightUri = "";
   let leftContents: DirectoryItem[] = [];
   let rightContents: DirectoryItem[] = [];
   let activePane: "left" | "right" = "left";
+  // In single-pane mode only the active pane is rendered; Tab swaps which one
+  let singlePane =
+    window.innerWidth > 0 && window.innerWidth < MIN_TWO_PANE_WIDTH;
+  // Whether the webview itself has keyboard focus; without it no pane is
+  // drawn as focused
+  let windowFocused = document.hasFocus();
   let leftSelectedIndices = new Set<number>([0]);
   let rightSelectedIndices = new Set<number>([0]);
   let leftFocusIndex = 0;
@@ -95,6 +104,9 @@ function* App(this: Context) {
     leftUri = savedState.leftUri || "";
     rightUri = savedState.rightUri || "";
     activePane = savedState.activePane || "left";
+    if (typeof savedState.singlePane === "boolean") {
+      singlePane = savedState.singlePane;
+    }
     leftPendingSelection = savedState.leftSelection ?? null;
     rightPendingSelection = savedState.rightSelection ?? null;
   }
@@ -104,6 +116,7 @@ function* App(this: Context) {
       leftUri,
       rightUri,
       activePane,
+      singlePane,
       leftSelection: selectionKeys("left"),
       rightSelection: selectionKeys("right"),
     });
@@ -413,6 +426,13 @@ function* App(this: Context) {
         triggerMove();
         break;
       }
+      case "triggerTogglePanes": {
+        this.refresh(() => {
+          singlePane = !singlePane;
+        });
+        saveState();
+        break;
+      }
       case "triggerMkdir": {
         const currentUri = activePane === "left" ? leftUri : rightUri;
         if (currentUri) {
@@ -485,10 +505,17 @@ function* App(this: Context) {
     }
   };
 
+  const handleWindowFocus = () => this.refresh(() => { windowFocused = true; });
+  const handleWindowBlur = () => this.refresh(() => { windowFocused = false; });
+
   window.addEventListener("message", handleMessage);
+  window.addEventListener("focus", handleWindowFocus);
+  window.addEventListener("blur", handleWindowBlur);
   document.addEventListener("keydown", handleKeyboard);
   this.cleanup(() => {
     window.removeEventListener("message", handleMessage);
+    window.removeEventListener("focus", handleWindowFocus);
+    window.removeEventListener("blur", handleWindowBlur);
     document.removeEventListener("keydown", handleKeyboard);
   });
 
@@ -514,30 +541,36 @@ function* App(this: Context) {
             onClose={() => this.refresh(() => { quickView = null; })}
           />
         )}
-        <Pane
-          pane="left"
-          uri={leftUri}
-          contents={leftContents}
-          selectedIndices={leftSelectedIndices}
-          focusIndex={leftFocusIndex}
-          isActive={activePane === "left"}
-          onNavigate={(uri) => navigateTo(uri, "left")}
-          onItemSelect={(index, shiftKey) =>
-            handleItemSelect(index, shiftKey, "left")
-          }
-        />
-        <Pane
-          pane="right"
-          uri={rightUri}
-          contents={rightContents}
-          selectedIndices={rightSelectedIndices}
-          focusIndex={rightFocusIndex}
-          isActive={activePane === "right"}
-          onNavigate={(uri) => navigateTo(uri, "right")}
-          onItemSelect={(index, shiftKey) =>
-            handleItemSelect(index, shiftKey, "right")
-          }
-        />
+        {(!singlePane || activePane === "left") && (
+          <Pane
+            pane="left"
+            uri={leftUri}
+            contents={leftContents}
+            selectedIndices={leftSelectedIndices}
+            focusIndex={leftFocusIndex}
+            isActive={activePane === "left"}
+            hasFocus={windowFocused && activePane === "left"}
+            onNavigate={(uri) => navigateTo(uri, "left")}
+            onItemSelect={(index, shiftKey) =>
+              handleItemSelect(index, shiftKey, "left")
+            }
+          />
+        )}
+        {(!singlePane || activePane === "right") && (
+          <Pane
+            pane="right"
+            uri={rightUri}
+            contents={rightContents}
+            selectedIndices={rightSelectedIndices}
+            focusIndex={rightFocusIndex}
+            isActive={activePane === "right"}
+            hasFocus={windowFocused && activePane === "right"}
+            onNavigate={(uri) => navigateTo(uri, "right")}
+            onItemSelect={(index, shiftKey) =>
+              handleItemSelect(index, shiftKey, "right")
+            }
+          />
+        )}
       </div>
     );
   }

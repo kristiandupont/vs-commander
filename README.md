@@ -41,6 +41,7 @@ A VS Code extension that provides a Norton Commander style dual-pane file manage
 | -------- | ---------------------------------------------------------- |
 | Arrows   | Move selection (Shift extends it)                          |
 | Tab      | Switch pane                                                |
+| `Ctrl+\` (`Cmd+\`) | Toggle between one and two panes                 |
 | Enter    | Enter directory / open file                                |
 | Space    | Quick View of the selected file or folder (Space or Escape closes) |
 | F2       | Rename                                                     |

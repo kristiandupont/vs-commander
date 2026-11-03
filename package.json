@@ -42,6 +42,10 @@
       {
         "command": "vsCommander.mkdir",
         "title": "New Folder (VS Commander)"
+      },
+      {
+        "command": "vsCommander.togglePanes",
+        "title": "Toggle One/Two Panes (VS Commander)"
       }
     ],
     "keybindings": [
@@ -58,6 +62,12 @@
       {
         "command": "vsCommander.mkdir",
         "key": "F7",
+        "when": "activeCustomEditorId == 'vsCommander.editor'"
+      },
+      {
+        "command": "vsCommander.togglePanes",
+        "key": "ctrl+\\",
+        "mac": "cmd+\\",
         "when": "activeCustomEditorId == 'vsCommander.editor'"
       }
     ]
