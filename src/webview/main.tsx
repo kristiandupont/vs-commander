@@ -179,28 +179,34 @@ function* App(this: Context) {
     saveState();
   };
 
-  const handleEnterKey = () => {
-    const focusIndex = activePane === "left" ? leftFocusIndex : rightFocusIndex;
-    const currentUri = activePane === "left" ? leftUri : rightUri;
-    const contents = activePane === "left" ? leftContents : rightContents;
+  // Enter on the cursor row, or a double-click on any row
+  const openIndex = (index: number, pane: "left" | "right") => {
+    const currentUri = pane === "left" ? leftUri : rightUri;
+    const contents = pane === "left" ? leftContents : rightContents;
 
-    if (focusIndex === 0) {
+    if (index === 0) {
       const parentUri = getParentUri(currentUri);
       if (parentUri) {
-        navigateTo(parentUri, activePane);
+        navigateTo(parentUri, pane);
       }
       return;
     }
 
-    const item = contents[focusIndex - 1]; // offset by 1 because index 0 is ".."
+    const item = contents[index - 1]; // offset by 1 because index 0 is ".."
     if (!item) return;
 
     if (item.type === "directory") {
-      navigateTo(item.uri, activePane);
+      navigateTo(item.uri, pane);
     } else {
       vscode.postMessage({ command: "openFile", uri: item.uri });
     }
   };
+
+  const handleEnterKey = () =>
+    openIndex(
+      activePane === "left" ? leftFocusIndex : rightFocusIndex,
+      activePane,
+    );
 
   // Copy and move both send the selection of the active pane to the directory
   // the opposite pane is showing
@@ -231,7 +237,11 @@ function* App(this: Context) {
 
   const openQuickView = (item: DirectoryItem) => {
     this.refresh(() => {
-      quickView = { status: "loading", fileName: item.name };
+      quickView = {
+        status: "loading",
+        fileName: item.name,
+        isSymlink: item.isSymlink,
+      };
     });
     vscode.postMessage({
       command: "previewFile",
@@ -418,6 +428,10 @@ function* App(this: Context) {
         saveState();
         break;
       }
+      case "focus": {
+        window.focus();
+        break;
+      }
       case "triggerCopy": {
         triggerCopy();
         break;
@@ -445,23 +459,29 @@ function* App(this: Context) {
         break;
       }
       case "filePreview": {
-        const { type, content, src, extension: ext, fileName, summary } = message;
+        const { type, content, src, extension: ext, summary } = message;
         // Drop replies for a closed overlay or a file the user has moved past
         const isCurrent = () =>
           quickView !== null && message.requestId === quickViewRequestId;
         if (!isCurrent()) break;
-        if (type === "binary" || type === "tooLarge") {
-          this.refresh(() => { quickView = { status: type, fileName }; });
+        // Fields every Quick View state carries
+        const base = {
+          fileName: message.fileName as string,
+          isSymlink: quickView!.isSymlink || !!message.symlink,
+          symlink: message.symlink,
+        };
+        if (type === "binary" || type === "tooLarge" || type === "brokenLink") {
+          this.refresh(() => { quickView = { ...base, status: type }; });
           break;
         }
         if (type === "directory") {
           this.refresh(() => {
-            quickView = { status: "directory", fileName, summary };
+            quickView = { ...base, status: "directory", summary };
           });
           break;
         }
         if (type === "image") {
-          this.refresh(() => { quickView = { status: "image", src, fileName }; });
+          this.refresh(() => { quickView = { ...base, status: "image", src }; });
           break;
         }
         // text: lazy-load renderers then render
@@ -473,9 +493,9 @@ function* App(this: Context) {
           this.refresh(() => {
             if (isCurrent()) {
               quickView = {
+                ...base,
                 status: "html",
                 html,
-                fileName,
                 isCode: type !== "markdown",
               };
             }
@@ -519,6 +539,9 @@ function* App(this: Context) {
     document.removeEventListener("keydown", handleKeyboard);
   });
 
+  // The host replies with "focus" if this tab is the active editor
+  vscode.postMessage({ command: "ready" });
+
   if (!hasSavedState) {
     vscode.postMessage({ command: "getWorkspaceFolders" });
   } else {
@@ -554,6 +577,7 @@ function* App(this: Context) {
             onItemSelect={(index, shiftKey) =>
               handleItemSelect(index, shiftKey, "left")
             }
+            onItemOpen={(index) => openIndex(index, "left")}
           />
         )}
         {(!singlePane || activePane === "right") && (
@@ -569,6 +593,7 @@ function* App(this: Context) {
             onItemSelect={(index, shiftKey) =>
               handleItemSelect(index, shiftKey, "right")
             }
+            onItemOpen={(index) => openIndex(index, "right")}
           />
         )}
       </div>

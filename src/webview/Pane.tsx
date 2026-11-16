@@ -6,7 +6,7 @@ import { formatBytes } from "./formatBytes";
 import { DirectoryItem } from "./types";
 
 function formatSize(item: DirectoryItem): string {
-  if (item.type === "directory") return "<DIR>";
+  if (item.type === "directory") return item.isSymlink ? "<LNK>" : "<DIR>";
   if (item.size === undefined) return "";
   return formatBytes(item.size);
 }
@@ -33,6 +33,8 @@ interface PaneProps {
   hasFocus: boolean;
   onNavigate: (uri: string) => void;
   onItemSelect: (index: number, shiftKey: boolean) => void;
+  // Double-click: enter a folder (or the parent, for "..") or open a file
+  onItemOpen: (index: number) => void;
 }
 
 export function Pane({
@@ -45,6 +47,7 @@ export function Pane({
   hasFocus,
   onNavigate,
   onItemSelect,
+  onItemOpen,
 }: PaneProps) {
   const parentUri = getParentUri(uri);
   const displayPath = uriToDisplayPath(uri);
@@ -83,7 +86,8 @@ export function Pane({
             selected: selectedIndices.has(0),
             focused: isActive && focusIndex === 0,
           }}
-          onclick={() => parentUri && onNavigate(parentUri)}
+          onclick={(e: MouseEvent) => onItemSelect(0, e.shiftKey)}
+          ondblclick={() => parentUri && onItemOpen(0)}
         >
           <span class="col-name">..</span>
           <span class="col-size" />
@@ -98,14 +102,19 @@ export function Pane({
               class={{
                 item: true,
                 [item.type]: true,
+                symlink: item.isSymlink,
                 selected: selectedIndices.has(actualIndex),
                 focused: isFocused,
               }}
-              title={item.name}
+              title={item.isSymlink ? `${item.name} (symbolic link)` : item.name}
               data-uri={item.uri}
               onclick={(e: MouseEvent) => onItemSelect(actualIndex, e.shiftKey)}
+              ondblclick={() => onItemOpen(actualIndex)}
             >
-              <span class="col-name">{item.name}</span>
+              <span class="col-name">
+                {item.isSymlink && <span class="link-marker">↪ </span>}
+                {item.name}
+              </span>
               <span class="col-size">{formatSize(item)}</span>
               <span class="col-date">{formatDate(item.lastModified)}</span>
             </div>

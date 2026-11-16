@@ -119,6 +119,15 @@
   color: var(--vscode-foreground);
 }
 
+.item.symlink .col-name {
+  font-style: italic;
+}
+
+.link-marker {
+  opacity: 0.7;
+  font-style: normal;
+}
+
 /* ── Quick View overlay ─────────────────────────────────────────── */
 
 .quickview-overlay {
@@ -174,6 +183,34 @@
 
 .quickview-close:hover {
   background: var(--vscode-toolbar-hoverBackground);
+}
+
+.quickview-symlink {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 12px;
+  background: var(--vscode-textBlockQuote-background);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.quickview-symlink-label {
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.quickview-symlink-target {
+  font-family: var(--vscode-editor-font-family);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickview-symlink.broken .quickview-symlink-note {
+  color: var(--vscode-errorForeground);
+  flex-shrink: 0;
 }
 
 .quickview-body {

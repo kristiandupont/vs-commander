@@ -19,10 +19,13 @@ Crank (not React — see `docs/crank-reference-for-react-devs.md`) UI for the du
 - Selection colours follow VS Code lists: `.pane.has-focus` (active pane *and* the webview window has focus) uses the active selection colours and outlines the cursor row; otherwise the inactive selection colours.
 - Pane state is persisted through `vscode.getState()`/`setState()` on every change, so a tab survives being backgrounded.
 - Replies can arrive out of order. `directoryContents` echoes `uri` and is dropped unless it matches the pane's current URI; `filePreview` echoes `requestId` and is dropped unless it matches `quickViewRequestId` and the overlay is still open.
+- Mouse: single click only selects (the ".." row too); double-click opens, same as Enter (`openIndex`).
+- **Initial focus**: VS Code doesn't move keyboard focus into a newly opened webview, so on startup the webview sends `ready` and the host replies `focus` (only if the tab is the active editor), on which it calls `window.focus()`.
+- Symlinks: `DirectoryItem.isSymlink` comes from the listing; the link target only arrives with a `filePreview` reply (`symlink`), and only for `file:` URIs.
 - The host never pushes updates on its own: after a write it replies `operationComplete` (optionally `reloadOtherPane`) and the webview re-requests the directory listing.
 
 ## Messages
 
-To the host: `getWorkspaceFolders`, `getDirectoryContents`, `openFile`, `previewFile` (`isDirectory` picks file preview vs. folder scan), `renameFile`, `deleteFiles`, `mkdir`, `copyFiles`, `moveFiles`.
+To the host: `ready`, `getWorkspaceFolders`, `getDirectoryContents`, `openFile`, `previewFile` (`isDirectory` picks file preview vs. folder scan), `renameFile`, `deleteFiles`, `mkdir`, `copyFiles`, `moveFiles`.
 
-From the host: `workspaceFolders`, `directoryContents`, `filePreview` (`type`: `code` | `markdown` | `image` | `binary` | `tooLarge` | `directory`), `operationComplete`, and the command relays `triggerCopy` / `triggerMove` / `triggerMkdir` / `triggerTogglePanes`.
+From the host: `focus`, `workspaceFolders`, `directoryContents`, `filePreview` (`type`: `code` | `markdown` | `image` | `binary` | `tooLarge` | `brokenLink` | `directory`; plus `symlink` when the item is a link), `operationComplete`, and the command relays `triggerCopy` / `triggerMove` / `triggerMkdir` / `triggerTogglePanes`.

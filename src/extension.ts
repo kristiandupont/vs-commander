@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as fs from "fs/promises";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("VS Commander is now active!");
@@ -107,6 +108,16 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
     const messageHandler = webviewPanel.webview.onDidReceiveMessage(
       async (message) => {
         switch (message.command) {
+          case "ready": {
+            // VS Code leaves keyboard focus where it was (e.g. the workbench
+            // body after the command palette closes), so the webview focuses
+            // itself — but only when its tab is the active editor, so a tab
+            // restored in another group doesn't take focus
+            if (webviewPanel.active) {
+              webviewPanel.webview.postMessage({ command: "focus" });
+            }
+            return;
+          }
           case "getWorkspaceFolders": {
             const folders =
               vscode.workspace.workspaceFolders?.map((f) => ({
@@ -203,14 +214,20 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
           case "previewFile": {
             const fileUri = vscode.Uri.parse(message.uri);
             const fileName = fileUri.path.split("/").pop() || "";
+            const symlink = await readSymlink(fileUri);
             // The webview drops replies whose requestId isn't its latest one
             const reply = (preview: Record<string, unknown>) =>
               webviewPanel.webview.postMessage({
                 command: "filePreview",
                 requestId: message.requestId,
                 fileName,
+                symlink,
                 ...preview,
               });
+            if (symlink?.broken) {
+              reply({ type: "brokenLink" });
+              return;
+            }
             if (message.isDirectory) {
               reply({
                 type: "directory",
@@ -379,6 +396,7 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
             // Bitmask test so symlinked directories (Directory | SymbolicLink)
             // are listed as directories too
             type: type & vscode.FileType.Directory ? "directory" : "file",
+            isSymlink: (type & vscode.FileType.SymbolicLink) !== 0,
             uri: itemUri.toString(),
             size,
             lastModified,
@@ -422,6 +440,30 @@ class VSCommanderEditorProvider implements vscode.CustomReadonlyEditorProvider {
 // Images are base64-encoded and sent through postMessage, so they get a cap too
 const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024;
 const MAX_IMAGE_PREVIEW_BYTES = 20 * 1024 * 1024;
+
+interface SymlinkInfo {
+  target: string;
+  broken: boolean;
+}
+
+// vscode.workspace.fs can tell that an entry is a link but not where it points,
+// so this reads the link with Node; other schemes get no link details
+async function readSymlink(uri: vscode.Uri): Promise<SymlinkInfo | undefined> {
+  if (uri.scheme !== "file") return undefined;
+  try {
+    if (!(await fs.lstat(uri.fsPath)).isSymbolicLink()) return undefined;
+    const target = await fs.readlink(uri.fsPath);
+    let broken = false;
+    try {
+      await fs.stat(uri.fsPath); // follows the link
+    } catch {
+      broken = true;
+    }
+    return { target, broken };
+  } catch {
+    return undefined;
+  }
+}
 
 interface DirectorySummary {
   files: number;
